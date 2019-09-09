@@ -6,12 +6,17 @@ using namespace std ;
 
 vector< vector<int> > board ;
 vector<p2p> validMoves ;
-vector<pair<t3p,t3p>> cannonCaptures ;
+vector<p2p> cannonCaptures ;
 vector<pair<t3p,p2i>> cannonAttacks ;
 vector<t3p> allCannons;
+vector<string> allMovesString ;
 int rows ;
 int cols ; 
 int id ;
+int countSoldierUS ;
+int countSoldierEnemy ;
+int countTHUS ;
+int countTHEnemy ;
 int duration ;
 
 void initialize(){
@@ -29,23 +34,10 @@ void initialize(){
 			board[2][i] =-1;
 		}
 	}
-}
-
-void executeMove(string move, bool player){                                //true indicates we are the player executing
-    stringstream ss(move) ;
-    int ix,iy,fx,fy ;
-    char bomb;
-    ss>>ix>>ix>>iy>>bomb>>fx>>fy ;
-    if(id==2&&!player){
-		ix=cols+1-ix ; iy=rows+1-iy ; fx=cols+1-fx; fy=rows+1-fy ;
-    }
-    if(bomb=='B'){
-		board[fy][fx]=0 ;
-    }
-    else{
-		board[iy][ix]=0;
-		board[fy][fx]=(player)?1:-1 ;
-	}        
+	countSoldierUS = 3*cols/2 ;
+	countSoldierEnemy = 3*cols/2 ;
+	countTHUS = cols/2 ;
+	countTHEnemy = cols/2 ;
 }
 
 string reverseMove(string move){
@@ -53,12 +45,13 @@ string reverseMove(string move){
 	stringstream ss(move) ;
 	int ix,iy,fx,fy ;
 	char bomb;
-	ss>>ix>>ix>>iy>>bomb>>fx>>fy ;
+	ss>>bomb>>ix>>iy>>bomb>>fx>>fy ;
+	//cout<<ix<<iy<<fx<<fy<<endl ;
 	rev=move ;
-	rev[1]=(char) (cols+1-ix);
-	rev[2] = (char) (rows+1-iy) ;
-	rev[4] =(char) (cols+1-fx) ;
-	rev[5]=(char)(rows+1-fy) ;
+	rev[2]=(char) (cols-1-ix +48);
+	rev[4] = (char) (rows-1-iy +48);
+	rev[8] =(char) (cols-1-fx + 48 );
+	rev[10]=(char)(rows-1-fy + 48 );
 	return rev ; 
 }
 
@@ -130,6 +123,27 @@ void getValidMoves(){
 	validMoves = validmoves ;
 }
 
+void getAllMovesString(){
+	vector<string> s_moves ;
+	for(auto i:validMoves){
+		string loc="" ;
+		loc+="S "+to_string(i.first.second)+" "+to_string(i.first.first)+" M "+to_string(i.second.second)+" "+to_string(i.second.first) ;
+		s_moves.push_back(loc) ;
+	}
+	for(auto i:cannonCaptures){
+		string loc="" ;
+		loc+="S "+to_string(i.first.second)+" "+to_string(i.first.first)+" M "+to_string(i.second.second)+" "+to_string(i.second.first) ;
+		s_moves.push_back(loc) ;		
+	}
+	for(auto i:cannonAttacks){
+		p2i base=get<1>(i.first) ;
+		string loc="" ;
+		loc+="S "+to_string(base.second)+" "+to_string(base.first)+" B "+to_string(i.second.second)+" "+to_string(i.second.first) ;
+		s_moves.push_back(loc) ;
+	}
+	allMovesString=s_moves ;
+}
+
 void getCannons(){
 	vector<t3p> cannons;
 	for(int i = 0; i < rows; i++){
@@ -146,15 +160,15 @@ void getCannons(){
 }
 
 void getCannonCaptures(){
-	vector<pair<t3p,t3p>> cannoncap ;
+	vector<p2p> cannoncap ;
 	int ti0,tj0,ti2,tj2 ;
 	for(auto i: allCannons){
 		ti0 = 2*get<0>(i).first-get<1>(i).first ;
 		tj0= 2*get<0>(i).second-get<1>(i).second ;
 		ti2 = 2*get<2>(i).first-get<1>(i).first ;
 		tj2= 2*get<2>(i).second-get<1>(i).second ;
-		if(validPosition(ti0,tj0)&&board[ti0][tj0]==0) cannoncap.push_back(make_pair(i,make_tuple(make_pair(ti0,tj0),get<0>(i),get<1>(i)))) ;
-		if(validPosition(ti2,tj2)&&board[ti2][tj2]==0) cannoncap.push_back(make_pair(i,make_tuple(make_pair(ti2,tj2),get<0>(i),get<1>(i)))) ;
+		if(validPosition(ti0,tj0)&&board[ti0][tj0]==0) cannoncap.push_back(make_pair(get<2>(i),make_pair(ti0,tj0))) ;
+		if(validPosition(ti2,tj2)&&board[ti2][tj2]==0) cannoncap.push_back(make_pair(get<0>(i),make_pair(ti2,tj2))) ;
 	}
 	cannonCaptures = cannoncap ;
 }
@@ -168,8 +182,8 @@ void getCannonAttacks(){
 		if(validPosition(di,dj)&&board[di][dj]==0){
 			d1i = 2*di-get<0>(cc).first ;
 			d1j = 2*dj-get<0>(cc).second ;
-			d2i = 2*d1i-d1i ;
-			d2j = 2*d1j-d1j ;
+			d2i = 2*d1i-di ;
+			d2j = 2*d1j-dj ;
 			if(validPosition(d1i,d1j)&&board[d1i][d1j]!=1 && board[d1i][d1j]!=2){almostCannonAttacks.push_back(make_pair(cc,make_pair(d1i,d1j))) ;}
 			if(validPosition(d2i,d2j)&&board[d2i][d2j]!=1 && board[d2i][d2j]!=2){almostCannonAttacks.push_back(make_pair(cc,make_pair(d2i,d2j))) ;}
 		}
@@ -178,8 +192,8 @@ void getCannonAttacks(){
 		if(validPosition(di,dj)&&board[di][dj]==0){
 			d1i = 2*di-get<2>(cc).first ;
 			d1j = 2*dj-get<2>(cc).second ;
-			d2i = 2*d1i-d1i ;
-			d2j = 2*d1j-d1j ;
+			d2i = 2*d1i-di ;
+			d2j = 2*d1j-dj ;
 			if(validPosition(d1i,d1j)&&board[d1i][d1j]!=1 && board[d1i][d1j]!=2){almostCannonAttacks.push_back(make_pair(cc,make_pair(d1i,d1j))) ;}
 			if(validPosition(d2i,d2j)&&board[d2i][d2j]!=1 && board[d2i][d2j]!=2){almostCannonAttacks.push_back(make_pair(cc,make_pair(d2i,d2j))) ;}
 		}
@@ -187,13 +201,80 @@ void getCannonAttacks(){
 	cannonAttacks = almostCannonAttacks ;
 }
 
+void update(){
+	//cout<<"I am in"<<endl ;
+	getValidMoves() ;//cout<<"I pass validMoves"<<endl ;
+	getCannons() ;//cout<<"I pass cannons"<<endl ;
+	getCannonCaptures() ;//cout<<"I pass cannonsCaptures"<<endl ;
+	getCannonAttacks() ;//cout<<"I pass cannonAttacks"<<endl ;
+	getAllMovesString() ;//cout<<"I pass allMovesString"<<endl ;
+	//cout<<"I am out"<<endl ;
+}
+void printBoard(){
+	for(auto i:board){
+		for(auto j:i) cout<<j<<" ";
+		cout<<endl ;
+	}
+}
+void executeMove(string move, bool player){                                //true indicates we are the player executing
+    //cout<<move<<endl ;
+	stringstream ss(move) ;
+    int ix,iy,fx,fy ;
+    char bomb;
+    ss>>bomb>>ix>>iy>>bomb>>fx>>fy ;
+	//cout<<bomb<<endl ;
+    if(id==2){
+		ix=cols-1-ix ; iy=rows-1-iy ; fx=cols-1-fx; fy=rows-1-fy ;
+    }
+    if(bomb=='B'){
+		board[fy][fx]=0 ;
+    }
+    else{
+		board[iy][ix]=0;
+		board[fy][fx]=(player) ? 1 : -1 ;
+		//cout<<"Yo" ;
+	}       
+}
+
+string getMove(){
+	int i = rand()%allMovesString.size() ;
+	 return (id==1) ? allMovesString[i]: reverseMove(allMovesString[i]) ;
+}
+
 int main(){
         string config ;
+		int x = unsigned(time(0))%32767; srand(x) ;
         getline(cin,config) ;
         stringstream ss(config) ;
-        ss>>id ; ss>>rows ; ss>>cols ; ss>>duration ;
-        board = vector<vector<int> >(rows,vector<int>(cols,0)) ;
+        ss>>id ; ss>>rows ; ss>>cols ; ss>>duration;
+        board = vector<vector<int> >(rows,vector<int>(cols,0));
         initialize() ;
-		
+		update() ;
+		string enemyMove,ourMove;
+		if(id == 2){
+			getline(cin,enemyMove);
+			executeMove(enemyMove, false);
+			update() ;
+		}
+		//printBoard() ;
+		//for(auto i: allCannons) cout<<get<0>(i).second<<","<<get<0>(i).first<<" "<<get<1>(i).second<<","<<get<1>(i).first<<" "<<get<2>(i).second<<","<<get<2>(i).first<<endl ;
+		//for(auto i: cannonAttacks) cout<<get<0>(i.first).second<<","<<get<0>(i.first).first<<" "<<get<1>(i.first).second<<","<<get<1>(i.first).first<<" "<<get<2>(i.first).second<<","<<get<2>(i.first).first<<":  "<<i.second.second<<","<<i.second.first<<endl ;
+		//cout<<"break"<<endl ;
+		//for(auto i:allMovesString) cout<<i<<endl ;
+		//executeMove(getMove(),true);
+		//printBoard() ;
+		//cout<<reverseMove("S 0 2 M 1 4") ;
+		while(true){
+			ourMove = getMove();
+			executeMove(ourMove,true);
+			//cout<<"I played my move: "<<ourMove<<endl ;
+			update() ;
+			//printBoard() ;
+			cout<<ourMove<<endl;
+			getline(cin,enemyMove);
+			executeMove(enemyMove, false);
+			//cout<<"Enemy move: "<<enemyMove<<endl ;
+			update() ;
+		}
         return 0 ;
 }
