@@ -5,10 +5,10 @@ using namespace std ;
 #define t3p tuple<p2i,p2i,p2i>
 
 vector< vector<int> > board ;
-set<p2p> validMoves ;
-set<pair<t3p,t3p>> cannonCaptures ;
-set<pair<t3p,p2i>> cannonAttacks ;
-set<t3p> allCannons;
+vector<p2p> validMoves ;
+vector<pair<t3p,t3p>> cannonCaptures ;
+vector<pair<t3p,p2i>> cannonAttacks ;
+vector<t3p> allCannons;
 int rows ;
 int cols ; 
 int id ;
@@ -100,18 +100,18 @@ vector<p2p> getValidMoveSingle(int i,int j){
 }
 
 void getValidMoves(){
-	set<p2p> validmoves ;
+	vector<p2p> validmoves ;
 	for(int i = 0; i < rows; i++){
 		for(int j = 0; j < cols; j++){
 			if(board[i][j] == 1){
 				//forward
-				if(validPosition(i-1,j)&& board[i-1][j]!=1) validmoves.insert(make_pair(make_pair(i,j),make_pair(i-1,j))) ;
-				if(validPosition(i-1,j+1)&& board[i-1][j+1]!=1) validmoves.insert(make_pair(make_pair(i,j),make_pair(i-1,j+1))) ;
-				if(validPosition(i-1,j-1)&& board[i-1][j-1]!=1) validmoves.insert(make_pair(make_pair(i,j),make_pair(i-1,j-1))) ;
+				if(validPosition(i-1,j)&& board[i-1][j]!=1) validmoves.push_back(make_pair(make_pair(i,j),make_pair(i-1,j))) ;
+				if(validPosition(i-1,j+1)&& board[i-1][j+1]!=1) validmoves.push_back(make_pair(make_pair(i,j),make_pair(i-1,j+1))) ;
+				if(validPosition(i-1,j-1)&& board[i-1][j-1]!=1) validmoves.push_back(make_pair(make_pair(i,j),make_pair(i-1,j-1))) ;
 				
 				//sideways
-				if(validPosition(i,j-1)&& (board[i][j-1]==-1||board[i][j-1]==-2)) validmoves.insert(make_pair(make_pair(i,j),make_pair(i,j-1))) ;
-				if(validPosition(i,j+1)&& (board[i][j+1]==-1||board[i][j+1]==-2)) validmoves.insert(make_pair(make_pair(i,j),make_pair(i,j+1))) ;
+				if(validPosition(i,j-1)&& (board[i][j-1]==-1||board[i][j-1]==-2)) validmoves.push_back(make_pair(make_pair(i,j),make_pair(i,j-1))) ;
+				if(validPosition(i,j+1)&& (board[i][j+1]==-1||board[i][j+1]==-2)) validmoves.push_back(make_pair(make_pair(i,j),make_pair(i,j+1))) ;
 				
 				//backward
 				bool back=((validPosition(i-1,j-1)&& board[i-1][j-1]==-1)||
@@ -120,9 +120,9 @@ void getValidMoves(){
 				   (validPosition(i,j-1)&& board[i][j-1]==-1)||
 				   (validPosition(i,j+1)&& board[i][j+1]==-1)) ;
 				if(back){
-					if(validPosition(i+2,j+2)&& board[i+2][j+2]!=1 && board[i+2][j+2]!=2) validmoves.insert(make_pair(make_pair(i,j),make_pair(i+2,j+2))) ;
-					if(validPosition(i+2,j)&& board[i+2][j]!=1 && board[i+2][j]!=2) validmoves.insert(make_pair(make_pair(i,j),make_pair(i+2,j))) ;
-					if(validPosition(i+2,j-2)&& board[i+2][j-2]!=1 && board[i+2][j-2]!=2) validmoves.insert(make_pair(make_pair(i,j),make_pair(i+2,j-2))) ;
+					if(validPosition(i+2,j+2)&& board[i+2][j+2]!=1 && board[i+2][j+2]!=2) validmoves.push_back(make_pair(make_pair(i,j),make_pair(i+2,j+2))) ;
+					if(validPosition(i+2,j)&& board[i+2][j]!=1 && board[i+2][j]!=2) validmoves.push_back(make_pair(make_pair(i,j),make_pair(i+2,j))) ;
+					if(validPosition(i+2,j-2)&& board[i+2][j-2]!=1 && board[i+2][j-2]!=2) validmoves.push_back(make_pair(make_pair(i,j),make_pair(i+2,j-2))) ;
 				}
 			}
 		}
@@ -131,36 +131,36 @@ void getValidMoves(){
 }
 
 void getCannons(){
-	set<t3p> cannons;
+	vector<t3p> cannons;
 	for(int i = 0; i < rows; i++){
 		for(int j = 0; j < cols; j++){
 			if(validPosition(i,j-1) && validPosition(i,j) && validPosition(i,j+1) && board[i][j-1] == 1 && board[i][j] == 1 && board[i][j+1] == 1)
-				{cannons.insert(make_tuple(make_pair(i,j-1),make_pair(i,j),make_pair(i,j+1)));}
+				{cannons.push_back(make_tuple(make_pair(i,j-1),make_pair(i,j),make_pair(i,j+1)));}
 			if(validPosition(i-1,j) && validPosition(i,j) && validPosition(i+1,j) && board[i-1][j] == 1 && board[i][j] == 1 &&board[i+1][j] == 1)
-				{cannons.insert(make_tuple(make_pair(i-1,j),make_pair(i,j),make_pair(i+1,j)));}
+				{cannons.push_back(make_tuple(make_pair(i-1,j),make_pair(i,j),make_pair(i+1,j)));}
 			if(validPosition(i+1,j-1) && validPosition(i,j) && validPosition(i-1,j+1) && board[i+1][j-1] == 1 && board[i][j] == 1 &&board[i-1][j+1] == 1)
-				{cannons.insert(make_tuple(make_pair(i+1,j-1),make_pair(i,j),make_pair(i-1,j+1)));}
+				{cannons.push_back(make_tuple(make_pair(i+1,j-1),make_pair(i,j),make_pair(i-1,j+1)));}
 		}
 	}
 	allCannons = cannons;
 }
 
 void getCannonCaptures(){
-	set<pair<t3p,t3p>> cannoncap ;
+	vector<pair<t3p,t3p>> cannoncap ;
 	int ti0,tj0,ti2,tj2 ;
 	for(auto i: allCannons){
 		ti0 = 2*get<0>(i).first-get<1>(i).first ;
 		tj0= 2*get<0>(i).second-get<1>(i).second ;
 		ti2 = 2*get<2>(i).first-get<1>(i).first ;
 		tj2= 2*get<2>(i).second-get<1>(i).second ;
-		if(validPosition(ti0,tj0)&&board[ti0][tj0]==0) cannoncap.insert(make_pair(i,make_tuple(make_pair(ti0,tj0),get<0>(i),get<1>(i)))) ;
-		if(validPosition(ti2,tj2)&&board[ti2][tj2]==0) cannoncap.insert(make_pair(i,make_tuple(make_pair(ti2,tj2),get<0>(i),get<1>(i)))) ;
+		if(validPosition(ti0,tj0)&&board[ti0][tj0]==0) cannoncap.push_back(make_pair(i,make_tuple(make_pair(ti0,tj0),get<0>(i),get<1>(i)))) ;
+		if(validPosition(ti2,tj2)&&board[ti2][tj2]==0) cannoncap.push_back(make_pair(i,make_tuple(make_pair(ti2,tj2),get<0>(i),get<1>(i)))) ;
 	}
 	cannonCaptures = cannoncap ;
 }
    
 void getCannonAttacks(){
-	set<pair<t3p,p2i>> almostCannonAttacks ;
+	vector<pair<t3p,p2i>> almostCannonAttacks ;
 	int di,dj,d1i,d1j,d2i,d2j ;
 	for(auto cc: allCannons){
 		di = 2*get<0>(cc).first - get<1>(cc).first ;
@@ -170,8 +170,8 @@ void getCannonAttacks(){
 			d1j = 2*dj-get<0>(cc).second ;
 			d2i = 2*d1i-d1i ;
 			d2j = 2*d1j-d1j ;
-			if(validPosition(d1i,d1j)&&board[d1i][d1j]!=1 && board[d1i][d1j]!=2){almostCannonAttacks.insert(make_pair(cc,make_pair(d1i,d1j))) ;}
-			if(validPosition(d2i,d2j)&&board[d2i][d2j]!=1 && board[d2i][d2j]!=2){almostCannonAttacks.insert(make_pair(cc,make_pair(d2i,d2j))) ;}
+			if(validPosition(d1i,d1j)&&board[d1i][d1j]!=1 && board[d1i][d1j]!=2){almostCannonAttacks.push_back(make_pair(cc,make_pair(d1i,d1j))) ;}
+			if(validPosition(d2i,d2j)&&board[d2i][d2j]!=1 && board[d2i][d2j]!=2){almostCannonAttacks.push_back(make_pair(cc,make_pair(d2i,d2j))) ;}
 		}
 		di = 2*get<2>(cc).first - get<1>(cc).first ;
 		dj = 2*get<2>(cc).second - get<1>(cc).second ;
@@ -180,8 +180,8 @@ void getCannonAttacks(){
 			d1j = 2*dj-get<2>(cc).second ;
 			d2i = 2*d1i-d1i ;
 			d2j = 2*d1j-d1j ;
-			if(validPosition(d1i,d1j)&&board[d1i][d1j]!=1 && board[d1i][d1j]!=2){almostCannonAttacks.insert(make_pair(cc,make_pair(d1i,d1j))) ;}
-			if(validPosition(d2i,d2j)&&board[d2i][d2j]!=1 && board[d2i][d2j]!=2){almostCannonAttacks.insert(make_pair(cc,make_pair(d2i,d2j))) ;}
+			if(validPosition(d1i,d1j)&&board[d1i][d1j]!=1 && board[d1i][d1j]!=2){almostCannonAttacks.push_back(make_pair(cc,make_pair(d1i,d1j))) ;}
+			if(validPosition(d2i,d2j)&&board[d2i][d2j]!=1 && board[d2i][d2j]!=2){almostCannonAttacks.push_back(make_pair(cc,make_pair(d2i,d2j))) ;}
 		}
 	}
 	cannonAttacks = almostCannonAttacks ;
