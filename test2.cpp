@@ -9,6 +9,8 @@ using namespace std ;
 #define mdp(a,b,c,d) make_pair(make_pair(a,b),make_pair(c,d))
 #define t3p tuple<p2i,p2i,p2i>
 
+//chnange wala, useless also added that priority on equality 
+
 vector< vector<int> > booard ;
 vector<p2p> validMoves ;
 vector<p2p> cannonCaptures ;
@@ -29,6 +31,7 @@ int countSoldierEnemy ;
 int countTHUS ;
 int countTHEnemy ;
 int duration ;
+int DEPTH=2 ;
 
 ///round off mean 
 ///Don;t forget to reinitialize all variables once their main functions are called
@@ -75,6 +78,7 @@ public:
 	bool player ; //1 for US, 0 for Enemy
 	bool chance ; //1 for US, 0 for Enemy 
 	
+	gameBoard* parent ;
 	vector< vector<int> > board ; //done
 	vector<p2p> validMoves ; //Done
 	vector<p2p> validMoves_Enemy ;	//done
@@ -125,6 +129,7 @@ public:
 	int scattering ; //tobedone
 	int scattering_Enemy ; //tobedone
 	
+	bool firstofkind=false ;
 	p2i meanUS ;	//done
 	p2i meanEnemy ;	//done
 	vector<p2p> supportingSoldiers ; //done
@@ -176,15 +181,23 @@ public:
 			for(int i = 0; i < weights.size(); i++){
 					res += weights[i]*features[i];
 			}*/
-			int local = -20*soldiers_Enemy+20*soldiers -40*townhall_Enemy+50*townhall +pow(-1,!chance)*4*(soldier2soldier+soldier2soldier_Enemy) + 12*cannon2soldier-12*cannon2soldier_Enemy ;
+			int local = -25*soldiers_Enemy+25*soldiers -80*townhall_Enemy+100*townhall +5*soldier2soldier +10*cannon2soldier-12*cannon2soldier_Enemy ;
 			/*int local= -12*blockedCannonsUS+12*blockedCannonsEnemy + 4*(12-soldiers_Enemy) -4*(12-soldiers) +7*cannons.size()-7*cannons_Enemy.size()
 			+10*(cannon2cannon-cannon2cannon_Enemy)+40*killTownHallMovesByCannon-40*killTownHallMovesByCannon_Enemy+15*killTownHallMovesBySoldier
 			-15*killTownHallMovesBySoldier_Enemy+6*(cannon2soldier-cannon2soldier_Enemy)+3*soldier2soldier-3*soldier2soldier_Enemy;*/
 			return local*1.0;
 	}
 
+	void printRealHeuristicFunction(){
+		cout<<realHeuristicFunction()<<endl ;
+	}
+	double realHeuristicFunction(){
+		if(firstofkind) return heuristicFunction() ;
+		else return heuristicFunction()-parent->heuristicFunction() ;
+	}
 	gameBoard(int m,int n, bool chance):rows(m),cols(n),player(!chance),chance(chance){ //nochange
 	//in this constructor you are not giving move this means... the chance is parameter corresponding to next player to the player's move you will give..
+		firstofkind=true ;
 		board= vector<vector<int>>(rows,vector<int>(cols,0)) ;
 		for(int i=0;i<cols;i++){
 			if(i%2==0){
@@ -204,9 +217,10 @@ public:
 		initCannons() ;
 	}
 				
-	gameBoard(vector<vector<int>> initialBoard, string implmove, bool chance){ //edited 2:23 chance is opposite	 of player, i.e. move and player is of same
+	gameBoard(gameBoard* initialBoard, string implmove, bool chance){ //edited 2:23 chance is opposite	 of player, i.e. move and player is of same
 		//You will give move... player is whose move is going to be executed ASAP.. All parameters are after the execution.. chance is the next player
-		board=initialBoard ;
+		parent= initialBoard ;
+		board=parent->board ;
 		this->chance = chance ;
 		//player=1, i.e You should be giving input 1 in chance and our move in implmove
 		this->player=!chance ;
@@ -216,6 +230,7 @@ public:
 	}
 	
 	void executeMove(string move){	 //edited 2:23
+		firstofkind=false; 
 		//cout<<"IN execute move with move: "<<move<<endl ;
 		stringstream ss(move) ;
 		int ix,iy,fx,fy ;
@@ -286,12 +301,11 @@ public:
 	//IN following function adjusting move is important ;
 	string minimax_move(){
 		if(chance!=1) throw "Not Applicable for Enemy! Only one sided player" ;
-		return minimaxCall(this,2,chance,DOUBLEMIN,DOUBLEMAX).second ;
+		pair<double,string> here =  minimaxCall(this,DEPTH,chance,DOUBLEMIN,DOUBLEMAX) ;
+		//cout<<here.first<<endl; 
+		return here.second ;
 	}
 	
-	void calSoldierScore(){
-		
-	}
 	
 	void printBoard(){
 			for(auto i:board){
@@ -812,7 +826,7 @@ public:
 	pair<double, string> static minimaxCall(gameBoard* gb,int depth, int herechance,double alpha, double beta){
 		//cout<<depth<<endl ;
 		if(depth==0) {
-			double val =gb->heuristicFunction() ; 
+			double val =gb->realHeuristicFunction() ; 
 			return make_pair(val,"TRASHMOVE") ;
 		}
 		// if(herechance&&depth%2!=0){
@@ -823,19 +837,29 @@ public:
 			vector<string> allmoves = gb->getAllMovesString() ;
 			pair<double,string> localpair ;
 			double maxval=DOUBLEMIN;
+			double val=0.0 ;
 			string retmove="" ;
+			gameBoard* winner ;
+			if(allmoves.size()!=0) winner = new gameBoard(gb,allmoves[0],!gb->chance) ;
 			for(auto i:allmoves){
-				gameBoard* tempboard = new gameBoard(gb->board,i,!gb->chance) ;
+				gameBoard* tempboard = new gameBoard(gb,i,!gb->chance) ;
 				//if(tempboard->soldiers_Enemy==0) return make_pair(-maxval,i) ; 
 				localpair = minimaxCall(tempboard,depth-1,!herechance,alpha,beta) ;
-				beta= (beta>localpair.first)? beta:localpair.first;
-				if(alpha>beta) return make_pair(localpair.first,i);
-				if(localpair.first>maxval) {
-					maxval = localpair.first ;
+				if(depth!=1) val =localpair.first + tempboard->realHeuristicFunction() ;
+				else val =localpair.first ;
+				//cout<<val<<endl ; tempboard->printBoard() ;
+				beta= (beta>val)? beta:val;
+				//if(alpha>beta) return make_pair(localpair.first,i);
+				//if(val>maxval||(val==maxval&&tempboard->realHeuristicFunction()>winner->realHeuristicFunction())){
+				if(val>maxval){
+					maxval = val ;
+					winner = tempboard ;
 					retmove = i ;
 				}
-				delete tempboard ;
+				else delete tempboard ;
 			}
+			if(allmoves.size()!=0) delete winner ;
+			//cout<<"MOVE==: "<<maxval<<","<<retmove<<endl ;
 			return make_pair(maxval,retmove) ;
 		}
 		else{
@@ -844,19 +868,29 @@ public:
 			pair<double,string> localpair ;
 			double minval=DOUBLEMAX ;
 			string retmove="" ;
+			double val=0.0 ;
+			gameBoard* winner ;
+			if(allmoves.size()!=0) winner = new gameBoard(gb,allmoves[0],!gb->chance) ;
 			for(auto i:allmoves){
 			//	cout<<"iside loop"<<endl ;
-				gameBoard* tempboard = new gameBoard(gb->board,i,!gb->chance) ;
+				gameBoard* tempboard = new gameBoard(gb,i,!gb->chance) ;
 				//if(tempboard->soldiers==0) return make_pair(-minval,i) ; 
 				localpair = minimaxCall(tempboard,depth-1,!herechance,alpha,beta) ;
-				alpha=(alpha<localpair.first)?alpha:localpair.first ;
-				if(alpha>beta) return make_pair(localpair.first,i) ;
-				if(localpair.first<minval) {
-					minval = localpair.first ;
+				if(depth!=1) val =localpair.first + tempboard->realHeuristicFunction() ;
+				else val =localpair.first ;
+				//cout<<val<<endl ; tempboard->printBoard() ;
+				alpha=(alpha<val)?alpha:val ;
+				//if(alpha>beta) return make_pair(localpair.first,i) ;
+				//if(val<minval||(val==minval&&tempboard->realHeuristicFunction()<winner->realHeuristicFunction())) {
+				if(val<minval) {
+					minval = val ;
 					retmove = i ;
+					winner=tempboard ;
 				}
-				delete tempboard ;
+				else delete tempboard ;
 			}
+			delete winner ;
+			//cout<<"MOVE==: "<<minval<<","<<retmove<<endl ;
 			return make_pair(minval,retmove) ;			
 		}
 	}
@@ -900,42 +934,38 @@ int main(){
 		*/
 	//auto start1 = chrono::high_resolution_clock::now();
 	bool firstchance=(PLAYERID==1)? 1:0  ;
-	gameBoard obj(8,8,firstchance) ;
+	gameBoard* obji = new gameBoard(rows,cols,firstchance) ;
 	string move="" ;
+	int count= 0;
+				/*obji->printBoard(); obji->printRealHeuristicFunction() ;
+				vector<string> allmoves = obji->getAllMovesString() ;
+				for(auto i:allmoves){
+					gameBoard* temp = new gameBoard(obji,i,0) ;
+					if(temp->realHeuristicFunction() >0){
+					temp->printBoard() ;
+					cout<<"Above Board: " ; temp->printRealHeuristicFunction() ;}
+					delete temp ;
+				}*/
 	//auto finish1 = chrono::high_resolution_clock::now();
 	//cout<<chrono::duration_cast<chrono::nanoseconds>(finish1-start1).count()<<endl ;
-	if(firstchance){
-		while(true){
-			if(obj.chance==0) {
-				getline(cin,move) ;
-				obj.swap() ;
-				obj.executeMove(move) ;
-			}
-			else{
-				move = obj.minimax_move() ;
-				obj.swap() ;
-				obj.executeMove(move) ;
-				cout<<move<<endl ;
-			}
-		}		
-	}
-	else{
-		
-		while(true){
-			if(obj.chance==0) {
-				getline(cin,move) ;
-				move = reverseMove(move) ;
-				obj.swap() ;
-				obj.executeMove(move) ;
-			}
-			else{
-				move = obj.minimax_move() ;
-				obj.swap() ;
-				obj.executeMove(move) ;
-				cout<<reverseMove(move)<<endl ;
-			}
+	gameBoard* obj2=obji;
+	gameBoard* obj1=obji;
+	while(true){
+		count++ ;
+		if(obj1->chance==0) {
+			getline(cin,move) ;
+			if(!firstchance) move=reverseMove(move) ;
+			obj2= new gameBoard(obj1, move, 1) ;
+			obj1=obj2 ;
+			//obj1->printBoard() ;
 		}
-	}
+		else{
+			move = obj2->minimax_move() ;
+			if(!firstchance) cout<<reverseMove(move)<<endl ;
+			else cout<<move<<endl ;
+			obj1= new gameBoard(obj2, move, 0) ;
+		}
+	}		
 	//cout<<"RUN_CHECK"<<endl ;
 	// vector<vector<int> > vec(8,vector<int>(8,0)) ;
 	// initialize(vec) ;
