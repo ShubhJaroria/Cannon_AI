@@ -9,8 +9,6 @@ using namespace std ;
 #define mdp(a,b,c,d) make_pair(make_pair(a,b),make_pair(c,d))
 #define t3p tuple<p2i,p2i,p2i>
 
-//chnange wala, useless also added that priority on equality 
-
 vector< vector<int> > booard ;
 vector<p2p> validMoves ;
 vector<p2p> cannonCaptures ;
@@ -31,8 +29,31 @@ int countSoldierEnemy ;
 int countTHUS ;
 int countTHEnemy ;
 int duration ;
-int DEPTH=2 ;
+int DEPTH=3 ;
 
+double soldier_near_soldier = -2.0 ; //done
+double soldier_near_townhall = 2.5 ; //done
+//double defensive_benefits=0.1 ; //in th
+double soldier_support=0.75 ; //done
+double living_soldier = 7.0 ; //done
+double mobility_score=0.1; //done
+//double being_attacked_by_cannon = -5.0 ;
+//double blocking_cannon_benefits= 1.2 ; //in sp
+double oneblock_factor = 2.0 ; //done
+double twoblock_factor = 1.5 ; //done
+
+double living_cannon=2.5 ;
+double soldier_in_zone= 6.0 ;
+double townhall_in_zone= 15.0 ;
+double townhall_in_approach= 0.0 ;
+double soldier_in_vicinity=0.7 ;
+double blocked_factor = 0.2 ;
+
+double alive_townhall=30.0 ;
+double defending_soldiers_1=2.2 ;
+double defending_soldiers_2=1.5 ;
+double defending_soldiers_ex=0.5 ;
+double defense_boost= 2.0 ;
 ///round off mean 
 ///Don;t forget to reinitialize all variables once their main functions are called
 ///alpha beta pruning mein sort
@@ -49,9 +70,9 @@ void initialize(vector<vector<int>> &board){
                 }
                 else{
                         board[cols-1][i]=2 ;
-                        //board[0][i] =-1;
-                       // board[1][i] =-1;
-                       // board[2][i] =-1;
+                        board[0][i] =-1;
+						board[1][i] =-1;
+                       board[2][i] = -1;
                 }
         }
 }
@@ -86,7 +107,7 @@ public:
 	vector<p2p> cannonCaptures_Enemy ; //done
 	vector<pair<t3p,p2i>> cannonAttacks ; //done
 	vector<pair<t3p,p2i>> cannonAttacks_Enemy ; //done
-	
+		int soldierMatrix[8][8] ;	
 	vector<t3p> cannons; //done
 	vector<t3p> cannons_Enemy ; //done
 	int blockedCannonsUS ; //done
@@ -105,9 +126,7 @@ public:
 	int cannon2soldier_Enemy ; //done
 	int cannon2cannon_Enemy ; //done
 	int soldier2cannon_Enemy ;
-	
-	int killSoldierScore=30 ;
-	//int killSoldierScore=100 ;
+
 	int cannonScore ;
 	int cannonScore_Enemy ;
 	int soldierScore_Enemy ; //should include support score
@@ -129,7 +148,6 @@ public:
 	int scattering ; //tobedone
 	int scattering_Enemy ; //tobedone
 	
-	bool firstofkind=false ;
 	p2i meanUS ;	//done
 	p2i meanEnemy ;	//done
 	vector<p2p> supportingSoldiers ; //done
@@ -139,65 +157,21 @@ public:
 	double Heuristic=0.0 ;	//edited 2:30
 	
 	vector<double> weights{ 1,2,3,4,5,6 };
-        
+    double heuristicFunction2(){
+			return soldierScore+cannonScore+townHallScore-soldierScore_Enemy-cannonScore_Enemy-townHallScore_Enemy ;
+	}
 	double heuristicFunction(){
-			vector<int> features ;
-			features.push_back(cannonCaptures.size());
-			features.push_back(cannonCaptures_Enemy.size());
-			features.push_back(cannonAttacks.size());
-			features.push_back(cannonAttacks_Enemy.size());
-			features.push_back(cannons.size());
-			features.push_back(cannons_Enemy.size());
-			features.push_back(blockedCannonsUS);
-			features.push_back(blockedCannonsEnemy);
-			features.push_back(soldiers);
-			features.push_back(soldiers_Enemy);
-			features.push_back(diffSoldiers);
-			features.push_back(soldier2soldier);
-			features.push_back(cannon2soldier);
-			features.push_back(cannon2cannon);
-			features.push_back(soldier2cannon);
-			features.push_back(soldier2soldier_Enemy);
-			features.push_back(cannon2soldier_Enemy);
-			features.push_back(cannon2cannon_Enemy);
-			features.push_back(soldier2cannon_Enemy);
-			features.push_back(killTownHallMovesBySoldier);
-			features.push_back(killTownHallMovesBySoldier_Enemy);
-			features.push_back(killTownHallMovesByCannon);
-			features.push_back(killTownHallMovesByCannon_Enemy);
-			features.push_back(scattering);
-			features.push_back(scattering_Enemy);
-			features.push_back(computeDistance(0,0,meanUS.first,meanUS.second));
-			features.push_back(computeDistance(0,0,meanEnemy.first,meanEnemy.second));
-			features.push_back(totalSupport);
-			features.push_back(totalSupport_Enemy);
-			/*for(int i = 0; i < cols/2; i++){
-					features.push_back(distsoldierUS_townhallUS[i]);
-					features.push_back(distsoldierUS_townhallEnemy[i]);
-					features.push_back(distsoldierEnemy_townhallEnemy[i]);
-					features.push_back(distsoldierEnemy_townhallUS[i]);
-			}
-			double res = 0;
-			for(int i = 0; i < weights.size(); i++){
-					res += weights[i]*features[i];
-			}*/
-			int local = -25*soldiers_Enemy+25*soldiers -80*townhall_Enemy+100*townhall +5*soldier2soldier +10*cannon2soldier-12*cannon2soldier_Enemy ;
+
+			//int local = -20*soldiers_Enemy+20*soldiers -40*townhall_Enemy+50*townhall +pow(-1,!chance)*4*(soldier2soldier+soldier2soldier_Enemy) + 12*cannon2soldier-12*cannon2soldier_Enemy ;
+			int local = -25*soldiers_Enemy+25*soldiers -80*townhall_Enemy+120*townhall+0*soldier2soldier+12*cannon2soldier-12*cannon2soldier_Enemy-25*killTownHallMovesByCannon_Enemy-15*killTownHallMovesBySoldier_Enemy+40*killTownHallMovesByCannon+15*killTownHallMovesBySoldier;
 			/*int local= -12*blockedCannonsUS+12*blockedCannonsEnemy + 4*(12-soldiers_Enemy) -4*(12-soldiers) +7*cannons.size()-7*cannons_Enemy.size()
 			+10*(cannon2cannon-cannon2cannon_Enemy)+40*killTownHallMovesByCannon-40*killTownHallMovesByCannon_Enemy+15*killTownHallMovesBySoldier
 			-15*killTownHallMovesBySoldier_Enemy+6*(cannon2soldier-cannon2soldier_Enemy)+3*soldier2soldier-3*soldier2soldier_Enemy;*/
 			return local*1.0;
 	}
 
-	void printRealHeuristicFunction(){
-		cout<<realHeuristicFunction()<<endl ;
-	}
-	double realHeuristicFunction(){
-		if(firstofkind) return heuristicFunction() ;
-		else return heuristicFunction()-parent->heuristicFunction() ;
-	}
 	gameBoard(int m,int n, bool chance):rows(m),cols(n),player(!chance),chance(chance){ //nochange
 	//in this constructor you are not giving move this means... the chance is parameter corresponding to next player to the player's move you will give..
-		firstofkind=true ;
 		board= vector<vector<int>>(rows,vector<int>(cols,0)) ;
 		for(int i=0;i<cols;i++){
 			if(i%2==0){
@@ -219,8 +193,8 @@ public:
 				
 	gameBoard(gameBoard* initialBoard, string implmove, bool chance){ //edited 2:23 chance is opposite	 of player, i.e. move and player is of same
 		//You will give move... player is whose move is going to be executed ASAP.. All parameters are after the execution.. chance is the next player
-		parent= initialBoard ;
-		board=parent->board ;
+		parent=initialBoard ;
+		board = parent->board ;
 		this->chance = chance ;
 		//player=1, i.e You should be giving input 1 in chance and our move in implmove
 		this->player=!chance ;
@@ -230,7 +204,6 @@ public:
 	}
 	
 	void executeMove(string move){	 //edited 2:23
-		firstofkind=false; 
 		//cout<<"IN execute move with move: "<<move<<endl ;
 		stringstream ss(move) ;
 		int ix,iy,fx,fy ;
@@ -257,53 +230,11 @@ public:
 		this->chance=!this->chance ;
 		this->player=!this->player ;
 	}
-	//These following function are explicitly for code testing....
-	string executeMMove(string advmove){ //edited 2:23
-	//this function is explicitly for code testing....
-		string move = "" ;
-		if(player) {
-			cout<<"US will now make a move"<<endl ;	
-			move=advmove ;
-		}
-		else {
-			cout<<"Enemy will now make a move"<<endl ;
-			while(!(move.size()==11&&move[0]=='S'&&move[1]==' '&&move[3]==' '&&move[5]==' '&&(move[6]=='B'||move[6]=='M')&&move[7]==' '&&move[9]==' '))
-				getline(cin,move) ;
-		}
-		executeMove(move) ;
-		initSoldiers() ;
-		initCannons() ;
-		printStats() ;
-		string furthermove="" ;
-		if(chance) furthermove = this->minimax_move() ;
-		else furthermove = "TRASH" ;
-		player=!player ;
-		chance=!chance ;
-		return furthermove ;
-		}
-	///above Functions are for testing
-	
-	vector<vector<int>> executeMoveBoard(string move){ //edited 2:23
-		stringstream ss(move) ;
-		int ix,iy,fx,fy ;
-		char bomb;
-		ss>>bomb>>ix>>iy>>bomb>>fx>>fy ;
-		if(bomb=='B'){
-			board[fy][fx]=0 ;
-		}
-		else{
-			board[iy][ix]=0;
-			board[fy][fx]=(player) ? 1 : -1 ;
-		}
-		return board ;		
-	}
-	
 	//IN following function adjusting move is important ;
 	string minimax_move(){
 		if(chance!=1) throw "Not Applicable for Enemy! Only one sided player" ;
-		pair<double,string> here =  minimaxCall(this,DEPTH,chance,DOUBLEMIN,DOUBLEMAX) ;
-		//cout<<here.first<<endl; 
-		return here.second ;
+		//cout<<chance<<endl ;
+		return minimaxCall(this,DEPTH,chance,DOUBLEMIN,DOUBLEMAX).second ;
 	}
 	
 	
@@ -440,15 +371,15 @@ public:
 					   (validPosition(i,j-1)&& board[i][j-1]==-1)||
 					   (validPosition(i,j+1)&& board[i][j+1]==-1)){
 							if(validPosition(i+2,j+2)&& board[i+2][j+2]!=1 && board[i+2][j+2]!=2){
-								//validMoves.push_back(mdp(i,j,i+2,j+2)) ;
+								validMoves.push_back(mdp(i,j,i+2,j+2)) ;
 								if(board[i+2][j+2]==-1) soldier2soldier++ ;
 							}
 							if(validPosition(i+2,j)&& board[i+2][j]!=1 && board[i+2][j]!=2){
-								//validMoves.push_back(mdp(i,j,i+2,j)) ;
+								validMoves.push_back(mdp(i,j,i+2,j)) ;
 								if(board[i+2][j]==-1) soldier2soldier++ ;							
 							}
 							if(validPosition(i+2,j-2)&& board[i+2][j-2]!=1 && board[i+2][j-2]!=2){
-								//validMoves.push_back(mdp(i,j,i+2,j-2)) ;
+								validMoves.push_back(mdp(i,j,i+2,j-2)) ;
 								if(board[i+2][j-2]==-1) soldier2soldier++ ;							
 							}
 					}
@@ -515,15 +446,15 @@ public:
 					   (validPosition(i,j-1)&& board[i][j-1]==1)||
 					   (validPosition(i,j+1)&& board[i][j+1]==1)){
 							if(validPosition(i-2,j+2)&& board[i-2][j+2]!=-1 && board[i-2][j+2]!=-2){
-								//validMoves_Enemy.push_back(mdp(i,j,i-2,j+2)) ;
+								validMoves_Enemy.push_back(mdp(i,j,i-2,j+2)) ;
 								if(board[i-2][j+2]==1) soldier2soldier_Enemy++ ;
 							}
 							if(validPosition(i-2,j)&& board[i-2][j]!=-1 && board[i-2][j]!=-2){
-								//validMoves_Enemy.push_back(mdp(i,j,i-2,j)) ;
+								validMoves_Enemy.push_back(mdp(i,j,i-2,j)) ;
 								if(board[i-2][j]==1) soldier2soldier_Enemy++ ;							
 							}
 							if(validPosition(i-2,j-2)&& board[i-2][j-2]!=-1 && board[i-2][j-2]!=-2){
-								//validMoves_Enemy.push_back(mdp(i,j,i-2,j-2)) ;
+								validMoves_Enemy.push_back(mdp(i,j,i-2,j-2)) ;
 								if(board[i-2][j-2]==1) soldier2soldier_Enemy++ ;							
 							}
 					}
@@ -546,245 +477,448 @@ public:
 		//cout<<"Exiting soldiersinit"<<endl ;
 	}	
 		
-	void initCannons(){
-		vector<t3p> allCannons,allCannons_enemy;
-		for(int i = 0; i < rows; i++){
-			for(int j = 0; j < cols; j++){
-				if(validPosition(i,j-1) && validPosition(i,j) && validPosition(i,j+1) && board[i][j-1] == 1 && board[i][j] == 1 && board[i][j+1] == 1)
-								{allCannons.push_back(make_tuple(make_pair(i,j-1),make_pair(i,j),make_pair(i,j+1)));}
-				if(validPosition(i-1,j) && validPosition(i,j) && validPosition(i+1,j) && board[i-1][j] == 1 && board[i][j] == 1 &&board[i+1][j] == 1)
-								{allCannons.push_back(make_tuple(make_pair(i-1,j),make_pair(i,j),make_pair(i+1,j)));}
-				if(validPosition(i+1,j-1) && validPosition(i,j) && validPosition(i-1,j+1) && board[i+1][j-1] == 1 && board[i][j] == 1 &&board[i-1][j+1] == 1)
-								{allCannons.push_back(make_tuple(make_pair(i+1,j-1),make_pair(i,j),make_pair(i-1,j+1)));}
-				if(validPosition(i,j-1) && validPosition(i,j) && validPosition(i,j+1) && board[i][j-1] == -1 && board[i][j] == -1 && board[i][j+1] == -1)
-								{allCannons_enemy.push_back(make_tuple(make_pair(i,j-1),make_pair(i,j),make_pair(i,j+1)));}
-				if(validPosition(i-1,j) && validPosition(i,j) && validPosition(i+1,j) && board[i-1][j] == -1 && board[i][j] == -1 &&board[i+1][j] == -1)
-								{allCannons_enemy.push_back(make_tuple(make_pair(i-1,j),make_pair(i,j),make_pair(i+1,j)));}
-				if(validPosition(i+1,j-1) && validPosition(i,j) && validPosition(i-1,j+1) && board[i+1][j-1] == -1 && board[i][j] == -1 &&board[i-1][j+1] == -1)
-								{allCannons_enemy.push_back(make_tuple(make_pair(i+1,j-1),make_pair(i,j),make_pair(i-1,j+1)));}
-			}
-		}
-		cannons = allCannons;
-		cannons_Enemy = allCannons_enemy;
-		vector<p2p> cannoncap,cannoncap_enemy ;
-		int killTownHallMovesByCannon_psd=0,killTownHallMovesByCannon_Enemy_psd=0;
-		int cannon2soldier_psd=0, cannon2cannon_psd=0, cannon2soldier_psd_enemy=0 , cannon2cannon_psd_enemy=0 ;		   
-		int ti0,tj0,ti2,tj2 ;
-		vector<pair<t3p,p2i>> almostCannonAttacks,almostCannonAttacks_enemy ;
-		int di,dj,d1i,d1j,d2i,d2j ;
-		int ourBlockedCannons=0, enemyBlockedCannons=0;
-		bool check = true;
-		
-		for(auto i: cannons){
-			//cout<<"Cannon: "<<get<0>(i).first<<","<<get<0>(i).second<<" "<<get<1>(i).first<<","<<get<1>(i).second<<" "<<get<2>(i).first<<","<<get<2>(i).second<<endl ;
-			ti0 = 2*get<0>(i).first-get<1>(i).first ;
-			tj0= 2*get<0>(i).second-get<1>(i).second ;
-			ti2 = 2*get<2>(i).first-get<1>(i).first ;
-			tj2= 2*get<2>(i).second-get<1>(i).second ;
-			if(board[get<0>(i).first][get<0>(i).second] == 1){
-				if(validPosition(ti0,tj0)&&board[ti0][tj0]==0) cannoncap.push_back(make_pair(get<2>(i),make_pair(ti0,tj0))) ;
-				if(validPosition(ti2,tj2)&&board[ti2][tj2]==0) cannoncap.push_back(make_pair(get<0>(i),make_pair(ti2,tj2))) ;
-				if(validPosition(ti0,tj0)&&board[ti0][tj0]!=0) ourBlockedCannons++ ;
-				if(validPosition(ti2,tj2)&&board[ti2][tj2]!=0) ourBlockedCannons++ ;
-			}		 
-			
-			di = 2*get<0>(i).first - get<1>(i).first ;
-			dj = 2*get<0>(i).second - get<1>(i).second ;
-			//cout<<" dpair1 "<<di<<","<<dj<<endl ;
-			if(validPosition(di,dj)&&board[di][dj]==0){
-				d1i = 2*di-get<0>(i).first ;
-				d1j = 2*dj-get<0>(i).second ;
-				d2i = 2*d1i-di ;
-				d2j = 2*d1j-dj ;
-				//cout<<d1i<<","<<d1j<<" "<<d2i<<","<<d2j<<endl ;
-					if(board[get<0>(i).first][get<0>(i).second] == 1){		  //edited
-						if(validPosition(d1i,d1j)){
-							if(board[d1i][d1j]!=1 && board[d1i][d1j]!=2&&board[d1i][d1j]!=0){
-								almostCannonAttacks.push_back(make_pair(i,make_pair(d1i,d1j))) ;
-							}
-							if(board[d1i][d1j]==-1)cannon2soldier_psd++;		 //edited
-							check = false;
-							for(auto j: cannons_Enemy){
-								if((get<0>(j).first == d1i && get<0>(j).second == d1j)||
-								(get<1>(j).first == d1i && get<1>(j).second == d1j)||
-								(get<2>(j).first == d1i && get<2>(j).second == d1j)||
-								(get<0>(j).first == d2i && get<0>(j).second == d2j)||
-								(get<1>(j).first == d2i && get<1>(j).second == d2j)||
-								(get<2>(j).first == d2i && get<2>(j).second == d2j)){check = true;}	 
-							}
-							if(check){cannon2cannon_psd++;}// cout<<d1i<<" "<<d1j<<endl;}
-							//else{cannon2soldier_psd++;}		 edited
-						}			   
-											//similar edits to be done
-						if(validPosition(d2i,d2j)){
-							if(board[d2i][d2j]!=1 && board[d2i][d2j]!=2&&board[d1i][d1j]!=0){
-								almostCannonAttacks.push_back(make_pair(i,make_pair(d2i,d2j))) ;
-							}
-							if(board[d2i][d2j]==-1)cannon2soldier_psd++;								
-						}					
-						if(validPosition(d1i,d1j)&&board[d1i][d1j]==-2){killTownHallMovesByCannon_psd++ ;}
-						if(validPosition(d2i,d2j)&&board[d2i][d2j]==-2){killTownHallMovesByCannon_psd++ ;}
-					}	
-			}	
-			//all edits to be done														  
-			di = 2*get<2>(i).first - get<1>(i).first ;
-			dj = 2*get<2>(i).second - get<1>(i).second ;
-			//cout<<" dpair2 "<<di<<","<<dj<<endl ;
-			if(validPosition(di,dj)&&board[di][dj]==0){
-				d1i = 2*di-get<2>(i).first ;
-				d1j = 2*dj-get<2>(i).second ;
-				d2i = 2*d1i-di ;
-				d2j = 2*d1j-dj ;
-						//cout<<d1i<<","<<d1j<<" "<<d2i<<","<<d2j<<endl ;
-				if(board[get<0>(i).first][get<0>(i).second] == 1){
-					if(validPosition(d1i,d1j)){
-						if(board[d1i][d1j]!=1 && board[d1i][d1j]!=2&&board[d1i][d1j]!=0){
-							almostCannonAttacks.push_back(make_pair(i,make_pair(d1i,d1j))) ;
-						}
-						if(board[d1i][d1j]==-1) cannon2soldier_psd_enemy++;
-						check = false;
-						for(auto j: cannons_Enemy){
-							if((get<0>(j).first == d1i && get<0>(j).second == d1j)||
-							(get<1>(j).first == d1i && get<1>(j).second == d1j)||
-							(get<2>(j).first == d1i && get<2>(j).second == d1j)||
-							(get<0>(j).first == d2i && get<0>(j).second == d2j)||
-							(get<1>(j).first == d2i && get<1>(j).second == d2j)||
-							(get<2>(j).first == d2i && get<2>(j).second == d2j)){check = true;}	 
-						}
-						if(check){cannon2cannon_psd++; }
-						//else{cannon2soldier_psd++;}	
-					}	
-					
-					if(validPosition(d2i,d2j)){
-						if(board[d2i][d2j]!=1 && board[d2i][d2j]!=2&&board[d1i][d1j]!=0){
-							almostCannonAttacks.push_back(make_pair(i,make_pair(d2i,d2j))) ;
-						}
-						check = false;
-						if(board[d2i][d2j]==-1) cannon2soldier_psd++;
-						//else{cannon2soldier_psd++;}
+        void initCannons(){
+                vector<t3p> allCannons,allCannons_enemy;
+                for(int i = 0; i < rows; i++){
+                        for(int j = 0; j < cols; j++){
+                                if(validPosition(i,j-1) && validPosition(i,j) && validPosition(i,j+1) && board[i][j-1] == 1 && board[i][j] == 1 && board[i][j+1] == 1)
+                                                                {allCannons.push_back(make_tuple(make_pair(i,j-1),make_pair(i,j),make_pair(i,j+1)));}
+                                if(validPosition(i-1,j) && validPosition(i,j) && validPosition(i+1,j) && board[i-1][j] == 1 && board[i][j] == 1 &&board[i+1][j] == 1)
+                                                                {allCannons.push_back(make_tuple(make_pair(i-1,j),make_pair(i,j),make_pair(i+1,j)));}
+                                if(validPosition(i+1,j-1) && validPosition(i,j) && validPosition(i-1,j+1) && board[i+1][j-1] == 1 && board[i][j] == 1 &&board[i-1][j+1] == 1)
+                                                                {allCannons.push_back(make_tuple(make_pair(i+1,j-1),make_pair(i,j),make_pair(i-1,j+1)));}
+                                if(validPosition(i,j-1) && validPosition(i,j) && validPosition(i,j+1) && board[i][j-1] == -1 && board[i][j] == -1 && board[i][j+1] == -1)
+                                                                {allCannons_enemy.push_back(make_tuple(make_pair(i,j-1),make_pair(i,j),make_pair(i,j+1)));}
+                                if(validPosition(i-1,j) && validPosition(i,j) && validPosition(i+1,j) && board[i-1][j] == -1 && board[i][j] == -1 &&board[i+1][j] == -1)
+                                                                {allCannons_enemy.push_back(make_tuple(make_pair(i-1,j),make_pair(i,j),make_pair(i+1,j)));}
+                                if(validPosition(i+1,j-1) && validPosition(i,j) && validPosition(i-1,j+1) && board[i+1][j-1] == -1 && board[i][j] == -1 &&board[i-1][j+1] == -1)
+                                                                {allCannons_enemy.push_back(make_tuple(make_pair(i+1,j-1),make_pair(i,j),make_pair(i-1,j+1)));}
+                        }
+                }
+				cannonScore=0.0 ;
+				cannonScore_Enemy=0.0 ;
+                cannons = allCannons;
+                cannons_Enemy = allCannons_enemy;
+                vector<p2p> cannoncap,cannoncap_enemy ;
+                int killTownHallMovesByCannon_psd=0,killTownHallMovesByCannon_Enemy_psd=0;
+                int cannon2soldier_psd=0, cannon2cannon_psd=0, cannon2soldier_psd_enemy=0 , cannon2cannon_psd_enemy=0 ;                   
+                int ti0,tj0,ti2,tj2 ;
+                vector<pair<t3p,p2i>> almostCannonAttacks,almostCannonAttacks_enemy ;
+                int di,dj,d1i,d1j,d2i,d2j,d3i,d3j,sx,sy ;
+                int ourBlockedCannons=0, enemyBlockedCannons=0;
+                bool check = true;
+				bool blocked=false ;
+                double single_score=0.0 ;
+				int dir= 0;
+                for(auto i: cannons){
+                        //cout<<"Cannon: "<<get<0>(i).first<<","<<get<0>(i).second<<" "<<get<1>(i).first<<","<<get<1>(i).second<<" "<<get<2>(i).first<<","<<get<2>(i).second<<endl ;
+						single_score+=living_cannon ;
 						
-					}
-					
-					if(validPosition(d1i,d1j)&&board[d1i][d1j]==-2){killTownHallMovesByCannon_psd++ ;}
-					if(validPosition(d2i,d2j)&&board[d2i][d2j]==-2){killTownHallMovesByCannon_psd++ ;}					 
-				}
-			}		 
-		}
-		for(auto i: cannons_Enemy){
-			ti0 = 2*get<0>(i).first-get<1>(i).first ;
-			tj0= 2*get<0>(i).second-get<1>(i).second ;
-			ti2 = 2*get<2>(i).first-get<1>(i).first ;
-			tj2= 2*get<2>(i).second-get<1>(i).second ;
-			if(board[get<0>(i).first][get<0>(i).second] == -1){
-				if(validPosition(ti0,tj0)&&board[ti0][tj0]==0) cannoncap_enemy.push_back(make_pair(get<2>(i),make_pair(ti0,tj0))) ;
-				if(validPosition(ti2,tj2)&&board[ti2][tj2]==0) cannoncap_enemy.push_back(make_pair(get<0>(i),make_pair(ti2,tj2))) ;
-				if(validPosition(ti0,tj0)&&board[ti0][tj0]==1) enemyBlockedCannons++ ;
-				if(validPosition(ti2,tj2)&&board[ti2][tj2]==1) enemyBlockedCannons++ ;
-			}		 
-														
-	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-				di = 2*get<0>(i).first - get<1>(i).first ;
-				dj = 2*get<0>(i).second - get<1>(i).second ;
-				if(validPosition(di,dj)&&board[di][dj]==0){
-					d1i = 2*di-get<0>(i).first ;
-					d1j = 2*dj-get<0>(i).second ;
-					d2i = 2*d1i-di ;
-					d2j = 2*d1j-dj ;
-					if(board[get<0>(i).first][get<0>(i).second] == -1){
-						if(validPosition(d1i,d1j)){
-							if(board[d1i][d1j]!=-1 && board[d1i][d1j]!=-2&&board[d1i][d1j]!=0){
-											almostCannonAttacks_enemy.push_back(make_pair(i,make_pair(d1i,d1j))) ;
+                        ti0 = 2*get<0>(i).first-get<1>(i).first ;
+                        tj0= 2*get<0>(i).second-get<1>(i).second ;
+                        ti2 = 2*get<2>(i).first-get<1>(i).first ;
+                        tj2= 2*get<2>(i).second-get<1>(i).second ;
+						if(validPosition(ti0,tj0)&&board[ti0][tj0]==0) cannoncap.push_back(make_pair(get<2>(i),make_pair(ti0,tj0))) ;
+						if(validPosition(ti2,tj2)&&board[ti2][tj2]==0) cannoncap.push_back(make_pair(get<0>(i),make_pair(ti2,tj2))) ;
+						if(validPosition(ti0,tj0)&&board[ti0][tj0]!=0) ourBlockedCannons++ ;
+						if(validPosition(ti2,tj2)&&board[ti2][tj2]!=0) ourBlockedCannons++ ;               
+				
+				
+                        di = 2*get<0>(i).first - get<1>(i).first ;
+                        dj = 2*get<0>(i).second - get<1>(i).second ;
+                        //cout<<" dpair1 "<<di<<","<<dj<<endl ;
+                        if(validPosition(di,dj)){
+							blocked= board[di][dj]!=0 ;
+							d1i = 2*di-get<0>(i).first ;
+							d1j = 2*dj-get<0>(i).second ;
+							d2i = 2*d1i-di ;
+							d2j = 2*d1j-dj ;
+							d3i = 2*d2i-d1i ;
+							d3j = 2*d2j-d1j ;
+                                //cout<<d1i<<","<<d1j<<" "<<d2i<<","<<d2j<<endl ;               //edited
+							if(validPosition(d1i,d1j)){
+									if(board[d1i][d1j]==-1){
+										if(!blocked)almostCannonAttacks.push_back(make_pair(i,make_pair(d1i,d1j))) ;
+										if(!blocked) cannon2soldier_psd++;
+										single_score+=soldier_in_zone*(1+soldierMatrix[d1i][d1j]/4.0) ;
+									}
+									if(board[d1i][d1j]==-2){
+										if(!blocked) almostCannonAttacks.push_back(make_pair(i,make_pair(d1i,d1j))) ;
+										if(!blocked) killTownHallMovesByCannon_psd++ ;
+										single_score+=townhall_in_zone ;
+									} 
+							}                           
+							if(validPosition(d2i,d2j)){
+									if(board[d2i][d2j]==-1){
+										if(!blocked) almostCannonAttacks.push_back(make_pair(i,make_pair(d2i,d2j))) ;
+										if(!blocked) cannon2soldier_psd++; 
+										single_score+=soldier_in_zone*(1+soldierMatrix[d2i][d2j]/4.0) ;
+									}
+									if(board[d2i][d2j]==-2){
+										if(!blocked) almostCannonAttacks.push_back(make_pair(i,make_pair(d2i,d2j))) ;
+										if(!blocked) killTownHallMovesByCannon_psd++ ;
+										single_score+=townhall_in_zone ;										
+									}                                                            
 							}
-							check = false;
-							if(board[d1i][d1j]==1) cannon2soldier_psd_enemy++;
-							for(auto j: cannons){
-											if((get<0>(j).first == d1i && get<0>(j).second == d1j)||
-											(get<1>(j).first == d1i && get<1>(j).second == d1j)||
-											(get<2>(j).first == d1i && get<2>(j).second == d1j)||
-											(get<0>(j).first == d2i && get<0>(j).second == d2j)||
-											(get<1>(j).first == d2i && get<1>(j).second == d2j)||
-											(get<2>(j).first == d2i && get<2>(j).second == d2j)){check = true;}	 
+							if(validPosition(d3i,d3j)&&board[d3i][d3j]==-2){single_score+=townhall_in_approach ;}
+							dir=0 ; // 1 for vertical, -1 for horizontal, 0 for diagonal 
+							if(di==d1i) dir=-1 ;
+							if(dj==d1j) dir=1 ;
+							if(dir==0){
+								sx=d1i+1 ; sy=d1j-1 ;
+								if(validPosition(sx,sy)&&board[sx][sy]==-1) single_score+=soldier_in_vicinity ;
+								sx=d1i-1 ; sy = d1j+1 ;
+								if(validPosition(sx,sy)&&board[sx][sy]==-1) single_score+=soldier_in_vicinity ;
+								sx=d2i-1 ; sy = d2i+1 ;
+								if(validPosition(sx,sy)&&board[sx][sy]==-1) single_score+=soldier_in_vicinity ;
+								sx=d2i+1 ; sy = d2i-1 ;
+								if(validPosition(sx,sy)&&board[sx][sy]==-1) single_score+=soldier_in_vicinity ;
 							}
-							if(check){cannon2cannon_psd_enemy++; }
-							//else{cannon2soldier_psd_enemy+			
-						}								 
-						if(validPosition(d2i,d2j)){
-							if(board[d2i][d2j]!=-1 && board[d2i][d2j]!=-2&&board[d1i][d1j]!=0){
-											almostCannonAttacks_enemy.push_back(make_pair(i,make_pair(d2i,d2j))) ;
+							if(dir==1){
+								sx=d1i ; sy=d1j-1 ;
+								if(validPosition(sx,sy)&&board[sx][sy]==-1) single_score+=soldier_in_vicinity ;
+								sx=d1i ; sy = d1j+1 ;
+								if(validPosition(sx,sy)&&board[sx][sy]==-1) single_score+=soldier_in_vicinity ;
+								sx=d2i ; sy = d2i+1 ;
+								if(validPosition(sx,sy)&&board[sx][sy]==-1) single_score+=soldier_in_vicinity ;
+								sx=d2i ; sy = d2i-1 ;
+								if(validPosition(sx,sy)&&board[sx][sy]==-1) single_score+=soldier_in_vicinity ;
 							}
-							check = false;
-							if(board[d2i][d2j]==1) cannon2soldier_psd_enemy++;
-							//else{cannon2soldier_psd_enemy++;}
-										
-						}
+							if(dir==2){
+								sx=d1i+1 ; sy=d1j ;
+								if(validPosition(sx,sy)&&board[sx][sy]==-1) single_score+=soldier_in_vicinity ;
+								sx=d1i-1 ; sy = d1j ;
+								if(validPosition(sx,sy)&&board[sx][sy]==-1) single_score+=soldier_in_vicinity ;
+								sx=d2i-1 ; sy = d2i ;
+								if(validPosition(sx,sy)&&board[sx][sy]==-1) single_score+=soldier_in_vicinity ;
+								sx=d2i+1 ; sy = d2i ;
+								if(validPosition(sx,sy)&&board[sx][sy]==-1) single_score+=soldier_in_vicinity ;
+							}
+							if(!blocked){
+								check = false;
+								for(auto j: cannons_Enemy){
+										if((get<0>(j).first == d1i && get<0>(j).second == d1j)||
+										(get<1>(j).first == d1i && get<1>(j).second == d1j)||
+										(get<2>(j).first == d1i && get<2>(j).second == d1j)||
+										(get<0>(j).first == d2i && get<0>(j).second == d2j)||
+										(get<1>(j).first == d2i && get<1>(j).second == d2j)||
+										(get<2>(j).first == d2i && get<2>(j).second == d2j)){check = true;}         
+//if(check)cout<<"THIS IS THAT PAIR"<<get<0>(i).first<<","<<get<0>(i).second<<" "<<get<1>(i).first<<","<<get<1>(i).second<<" "<<get<2>(i).first<<","<<get<2>(i).second<<"   "<<get<0>(j).first<<","<<get<0>(j).second<<" "<<get<1>(j).first<<","<<get<1>(j).second<<" "<<get<2>(j).first<<","<<get<2>(j).second<<"     "<<d1i<<","<<d1j<<" "<<d2i<<","<<d2j<<endl ;								
+								}
+								if(check){cannon2cannon_psd++;}  
+							}
+						if(blocked) single_score*=blocked_factor ;
+						cannonScore+=single_score ;
+                        }
 						
-						if(validPosition(d1i,d1j)&&board[d1i][d1j]==2){killTownHallMovesByCannon_Enemy_psd++ ;}
-						if(validPosition(d2i,d2j)&&board[d2i][d2j]==2){killTownHallMovesByCannon_Enemy_psd++ ;}
-					}						 
-				}
-				di = 2*get<2>(i).first - get<1>(i).first ;
-				dj = 2*get<2>(i).second - get<1>(i).second ;
-				if(validPosition(di,dj)&&board[di][dj]==0){
-					d1i = 2*di-get<2>(i).first ;
-					d1j = 2*dj-get<2>(i).second ;
-					d2i = 2*d1i-di ;
-					d2j = 2*d1j-dj ;
-					if(board[get<0>(i).first][get<0>(i).second] == -1){
-						if(validPosition(d1i,d1j)){
-							if(board[d1i][d1j]!=1 && board[d1i][d1j]!=-2&&board[d1i][d1j]!=0){
-											almostCannonAttacks_enemy.push_back(make_pair(i,make_pair(d1i,d1j))) ;
+						single_score=0.0 ;
+                        //all edits to be done                                                                                                                  
+                        di = 2*get<2>(i).first - get<1>(i).first ;
+                        dj = 2*get<2>(i).second - get<1>(i).second ;
+                        //cout<<" dpair2 "<<di<<","<<dj<<endl ;
+                        if(validPosition(di,dj)){
+							blocked= board[di][dj]!=0 ;
+							d1i = 2*di-get<2>(i).first ;
+							d1j = 2*dj-get<2>(i).second ;
+							d2i = 2*d1i-di ;
+							d2j = 2*d1j-dj ;
+							d3i = 2*d2i-d1i ;
+							d3j = 2*d2j-d1j ;
+                                //cout<<d1i<<","<<d1j<<" "<<d2i<<","<<d2j<<endl ;               //edited
+							if(validPosition(d1i,d1j)){
+									if(board[d1i][d1j]==-1){
+										if(!blocked)almostCannonAttacks.push_back(make_pair(i,make_pair(d1i,d1j))) ;
+										if(!blocked) cannon2soldier_psd++;
+										single_score+=soldier_in_zone*(1+soldierMatrix[d1i][d1j]/4.0) ;
+									}
+									if(board[d1i][d1j]==-2){
+										if(!blocked) almostCannonAttacks.push_back(make_pair(i,make_pair(d1i,d1j))) ;
+										if(!blocked) killTownHallMovesByCannon_psd++ ;
+										single_score+=townhall_in_zone ;
+									} 
+							}                           
+							if(validPosition(d2i,d2j)){
+									if(board[d2i][d2j]==-1){
+										if(!blocked) almostCannonAttacks.push_back(make_pair(i,make_pair(d2i,d2j))) ;
+										if(!blocked) cannon2soldier_psd++; 
+										single_score+=soldier_in_zone*(1+soldierMatrix[d2i][d2j]/4.0) ;
+									}
+									if(board[d2i][d2j]==-2){
+										if(!blocked) almostCannonAttacks.push_back(make_pair(i,make_pair(d2i,d2j))) ;
+										if(!blocked) killTownHallMovesByCannon_psd++ ;
+										single_score+=townhall_in_zone ;										
+									}                                                            
 							}
-							check = false;
-							if(board[d1i][d1j]==1) cannon2soldier_psd_enemy++;
-							for(auto j: cannons){
-											if((get<0>(j).first == d1i && get<0>(j).second == d1j)||
-											(get<1>(j).first == d1i && get<1>(j).second == d1j)||
-											(get<2>(j).first == d1i && get<2>(j).second == d1j)||
-											(get<0>(j).first == d2i && get<0>(j).second == d2j)||
-											(get<1>(j).first == d2i && get<1>(j).second == d2j)||
-											(get<2>(j).first == d2i && get<2>(j).second == d2j)){check = true;}	 
+							if(validPosition(d3i,d3j)&&board[d3i][d3j]==-2){single_score+=townhall_in_approach ;}
+							dir=0 ; // 1 for vertical, -1 for horizontal, 0 for diagonal 
+							if(di==d1i) dir=-1 ;
+							if(dj==d1j) dir=1 ;
+							if(dir==0){
+								sx=d1i+1 ; sy=d1j-1 ;
+								if(validPosition(sx,sy)&&board[sx][sy]==-1) single_score+=soldier_in_vicinity ;
+								sx=d1i-1 ; sy = d1j+1 ;
+								if(validPosition(sx,sy)&&board[sx][sy]==-1) single_score+=soldier_in_vicinity ;
+								sx=d2i-1 ; sy = d2i+1 ;
+								if(validPosition(sx,sy)&&board[sx][sy]==-1) single_score+=soldier_in_vicinity ;
+								sx=d2i+1 ; sy = d2i-1 ;
+								if(validPosition(sx,sy)&&board[sx][sy]==-1) single_score+=soldier_in_vicinity ;
 							}
-							if(check){cannon2cannon_psd_enemy++;} //cout<<d1i<<" "<<d1j<<endl;}
-							else{cannon2soldier_psd_enemy;}
-										
-						}
+							else if(dir==1){
+								sx=d1i ; sy=d1j-1 ;
+								if(validPosition(sx,sy)&&board[sx][sy]==-1) single_score+=soldier_in_vicinity ;
+								sx=d1i ; sy = d1j+1 ;
+								if(validPosition(sx,sy)&&board[sx][sy]==-1) single_score+=soldier_in_vicinity ;
+								sx=d2i ; sy = d2i+1 ;
+								if(validPosition(sx,sy)&&board[sx][sy]==-1) single_score+=soldier_in_vicinity ;
+								sx=d2i ; sy = d2i-1 ;
+								if(validPosition(sx,sy)&&board[sx][sy]==-1) single_score+=soldier_in_vicinity ;
+							}
+							else if(dir==2){
+								sx=d1i+1 ; sy=d1j ;
+								if(validPosition(sx,sy)&&board[sx][sy]==-1) single_score+=soldier_in_vicinity ;
+								sx=d1i-1 ; sy = d1j ;
+								if(validPosition(sx,sy)&&board[sx][sy]==-1) single_score+=soldier_in_vicinity ;
+								sx=d2i-1 ; sy = d2i ;
+								if(validPosition(sx,sy)&&board[sx][sy]==-1) single_score+=soldier_in_vicinity ;
+								sx=d2i+1 ; sy = d2i ;
+								if(validPosition(sx,sy)&&board[sx][sy]==-1) single_score+=soldier_in_vicinity ;
+							}
+							if(!blocked){
+								check = false;
+								for(auto j: cannons_Enemy){
+										if((get<0>(j).first == d1i && get<0>(j).second == d1j)||
+										(get<1>(j).first == d1i && get<1>(j).second == d1j)||
+										(get<2>(j).first == d1i && get<2>(j).second == d1j)||
+										(get<0>(j).first == d2i && get<0>(j).second == d2j)||
+										(get<1>(j).first == d2i && get<1>(j).second == d2j)||
+										(get<2>(j).first == d2i && get<2>(j).second == d2j)){check = true;
+//if(check)cout<<"THIS IS THAT PAIR"<<get<0>(i).first<<","<<get<0>(i).second<<" "<<get<1>(i).first<<","<<get<1>(i).second<<" "<<get<2>(i).first<<","<<get<2>(i).second<<"   "<<get<0>(j).first<<","<<get<0>(j).second<<" "<<get<1>(j).first<<","<<get<1>(j).second<<" "<<get<2>(j).first<<","<<get<2>(j).second<<"     "<<d1i<<","<<d1j<<" "<<d2i<<","<<d2j<<endl ;										
+										}         
+								}
+								if(check){
+									cannon2cannon_psd++;}  
+							}
 						
-						if(validPosition(d2i,d2j)){
-							if(board[d2i][d2j]!=-1 && board[d2i][d2j]!=-2&&board[d1i][d1j]!=0){
-								almostCannonAttacks_enemy.push_back(make_pair(i,make_pair(d2i,d2j))) ;
+						if(blocked) single_score*=blocked_factor ;
+						cannonScore+=single_score ;
+                        }						
+                }
+                single_score=0.0 ;
+				for(auto i: cannons_Enemy){
+                        //cout<<"Cannon: "<<get<0>(i).first<<","<<get<0>(i).second<<" "<<get<1>(i).first<<","<<get<1>(i).second<<" "<<get<2>(i).first<<","<<get<2>(i).second<<endl ;
+						single_score+=living_cannon ;
+						
+                        ti0 = 2*get<0>(i).first-get<1>(i).first ;
+                        tj0= 2*get<0>(i).second-get<1>(i).second ;
+                        ti2 = 2*get<2>(i).first-get<1>(i).first ;
+                        tj2= 2*get<2>(i).second-get<1>(i).second ;
+						if(validPosition(ti0,tj0)&&board[ti0][tj0]==0) cannoncap_enemy.push_back(make_pair(get<2>(i),make_pair(ti0,tj0))) ;
+						if(validPosition(ti2,tj2)&&board[ti2][tj2]==0) cannoncap_enemy.push_back(make_pair(get<0>(i),make_pair(ti2,tj2))) ;
+						if(validPosition(ti0,tj0)&&board[ti0][tj0]!=0) enemyBlockedCannons++ ;
+						if(validPosition(ti2,tj2)&&board[ti2][tj2]!=0) enemyBlockedCannons++ ;                
+				
+                        di = 2*get<0>(i).first - get<1>(i).first ;
+                        dj = 2*get<0>(i).second - get<1>(i).second ;
+                        //cout<<" dpair1 "<<di<<","<<dj<<endl ;
+                        if(validPosition(di,dj)){
+						blocked= board[di][dj]!=0 ;
+							d1i = 2*di-get<0>(i).first ;
+							d1j = 2*dj-get<0>(i).second ;
+							d2i = 2*d1i-di ;
+							d2j = 2*d1j-dj ;
+							d3i = 2*d2i-d1i ;
+							d3j = 2*d2j-d1j ;
+                                //cout<<d1i<<","<<d1j<<" "<<d2i<<","<<d2j<<endl ;               //edited
+							if(validPosition(d1i,d1j)){
+									if(board[d1i][d1j]==1){
+										if(!blocked)almostCannonAttacks_enemy.push_back(make_pair(i,make_pair(d1i,d1j))) ;
+										if(!blocked) cannon2soldier_psd_enemy++;
+										single_score+=soldier_in_zone*(1+soldierMatrix[d1i][d1j]/4.0) ;
+									}
+									if(board[d1i][d1j]==2){
+										if(!blocked) almostCannonAttacks_enemy.push_back(make_pair(i,make_pair(d1i,d1j))) ;
+										if(!blocked) killTownHallMovesByCannon_Enemy_psd++ ;
+										single_score+=townhall_in_zone ;
+									} 
+							}                           
+							if(validPosition(d2i,d2j)){
+									if(board[d2i][d2j]==1){
+										if(!blocked) almostCannonAttacks_enemy.push_back(make_pair(i,make_pair(d2i,d2j))) ;
+										if(!blocked) cannon2soldier_psd_enemy++; 
+										single_score+=soldier_in_zone*(1+soldierMatrix[d2i][d2j]/4.0) ;
+									}
+									if(board[d2i][d2j]==2){
+										if(!blocked) almostCannonAttacks_enemy.push_back(make_pair(i,make_pair(d2i,d2j))) ;
+										if(!blocked) killTownHallMovesByCannon_Enemy_psd++ ;
+										single_score+=townhall_in_zone ;										
+									}                                                            
 							}
-							check = false;
-							if(board[d2i][d2j]==1) cannon2soldier_psd_enemy++;
-
-							//else{cannon2soldier_psd_enemy;}
-										
-						}
-					
-						if(validPosition(d1i,d1j)&&board[d1i][d1j]==2){killTownHallMovesByCannon_Enemy_psd++ ;}
-						if(validPosition(d2i,d2j)&&board[d2i][d2j]==2){killTownHallMovesByCannon_Enemy_psd++ ;}						 
-					}
-				}
-		}
-		
-		cannonAttacks = almostCannonAttacks ;
-		cannonCaptures = cannoncap ;
-		cannonAttacks_Enemy = almostCannonAttacks_enemy;
-		cannonCaptures_Enemy = cannoncap_enemy;
-		blockedCannonsUS = ourBlockedCannons;
-		blockedCannonsEnemy = enemyBlockedCannons;
-		killTownHallMovesByCannon = killTownHallMovesByCannon_psd;
-		killTownHallMovesByCannon_Enemy = killTownHallMovesByCannon_Enemy_psd;
-		cannon2cannon = cannon2cannon_psd;
-		cannon2cannon_Enemy = cannon2cannon_psd_enemy;
-		cannon2soldier = cannon2soldier_psd;
-		cannon2soldier_Enemy = cannon2soldier_psd_enemy;
-		
-		}  
+							if(validPosition(d3i,d3j)&&board[d3i][d3j]==2){single_score+=townhall_in_approach ;}
+							dir=0 ; // 1 for vertical, -1 for horizontal, 0 for diagonal 
+							if(di==d1i) dir=-1 ;
+							if(dj==d1j) dir=1 ;
+							if(dir==0){
+								sx=d1i+1 ; sy=d1j-1 ;
+								if(validPosition(sx,sy)&&board[sx][sy]==1) single_score+=soldier_in_vicinity ;
+								sx=d1i-1 ; sy = d1j+1 ;
+								if(validPosition(sx,sy)&&board[sx][sy]==1) single_score+=soldier_in_vicinity ;
+								sx=d2i-1 ; sy = d2i+1 ;
+								if(validPosition(sx,sy)&&board[sx][sy]==1) single_score+=soldier_in_vicinity ;
+								sx=d2i+1 ; sy = d2i-1 ;
+								if(validPosition(sx,sy)&&board[sx][sy]==1) single_score+=soldier_in_vicinity ;
+							}
+							if(dir==1){
+								sx=d1i ; sy=d1j-1 ;
+								if(validPosition(sx,sy)&&board[sx][sy]==1) single_score+=soldier_in_vicinity ;
+								sx=d1i ; sy = d1j+1 ;
+								if(validPosition(sx,sy)&&board[sx][sy]==1) single_score+=soldier_in_vicinity ;
+								sx=d2i ; sy = d2i+1 ;
+								if(validPosition(sx,sy)&&board[sx][sy]==1) single_score+=soldier_in_vicinity ;
+								sx=d2i ; sy = d2i-1 ;
+								if(validPosition(sx,sy)&&board[sx][sy]==1) single_score+=soldier_in_vicinity ;
+							}
+							if(dir==2){
+								sx=d1i+1 ; sy=d1j ;
+								if(validPosition(sx,sy)&&board[sx][sy]==1) single_score+=soldier_in_vicinity ;
+								sx=d1i-1 ; sy = d1j ;
+								if(validPosition(sx,sy)&&board[sx][sy]==1) single_score+=soldier_in_vicinity ;
+								sx=d2i-1 ; sy = d2i ;
+								if(validPosition(sx,sy)&&board[sx][sy]==1) single_score+=soldier_in_vicinity ;
+								sx=d2i+1 ; sy = d2i ;
+								if(validPosition(sx,sy)&&board[sx][sy]==1) single_score+=soldier_in_vicinity ;
+							}
+							if(!blocked){
+								check = false;
+								for(auto j: cannons){
+										if((get<0>(j).first == d1i && get<0>(j).second == d1j)||
+										(get<1>(j).first == d1i && get<1>(j).second == d1j)||
+										(get<2>(j).first == d1i && get<2>(j).second == d1j)||
+										(get<0>(j).first == d2i && get<0>(j).second == d2j)||
+										(get<1>(j).first == d2i && get<1>(j).second == d2j)||
+										(get<2>(j).first == d2i && get<2>(j).second == d2j)){check = true;
+//if(check)cout<<"THIS IS THAT PAIR"<<get<0>(i).first<<","<<get<0>(i).second<<" "<<get<1>(i).first<<","<<get<1>(i).second<<" "<<get<2>(i).first<<","<<get<2>(i).second<<"   "<<get<0>(j).first<<","<<get<0>(j).second<<" "<<get<1>(j).first<<","<<get<1>(j).second<<" "<<get<2>(j).first<<","<<get<2>(j).second<<"     "<<d1i<<","<<d1j<<" "<<d2i<<","<<d2j<<endl ;									
+									}         
+								}
+								if(check){cannon2cannon_psd_enemy++;}  
+							}
+                        }
+						if(blocked) single_score*=blocked_factor ;
+						cannonScore_Enemy+=single_score ;
+						
+						single_score=0.0 ;
+                        //all edits to be done                                                                                                                  
+                        di = 2*get<2>(i).first - get<1>(i).first ;
+                        dj = 2*get<2>(i).second - get<1>(i).second ;
+                        //cout<<" dpair2 "<<di<<","<<dj<<endl ;
+                        if(validPosition(di,dj)){
+						blocked= board[di][dj]!=0 ;
+							d1i = 2*di-get<2>(i).first ;
+							d1j = 2*dj-get<2>(i).second ;
+							d2i = 2*d1i-di ;
+							d2j = 2*d1j-dj ;
+							d3i = 2*d2i-d1i ;
+							d3j = 2*d2j-d1j ;
+                                //cout<<d1i<<","<<d1j<<" "<<d2i<<","<<d2j<<endl ;               //edited
+							if(validPosition(d1i,d1j)){
+									if(board[d1i][d1j]==1){
+										if(!blocked)almostCannonAttacks_enemy.push_back(make_pair(i,make_pair(d1i,d1j))) ;
+										if(!blocked) cannon2soldier_psd_enemy++;
+										single_score+=soldier_in_zone*(1+soldierMatrix[d1i][d1j]/4.0) ;
+									}
+									if(board[d1i][d1j]==2){
+										if(!blocked) almostCannonAttacks_enemy.push_back(make_pair(i,make_pair(d1i,d1j))) ;
+										if(!blocked) killTownHallMovesByCannon_Enemy_psd++ ;
+										single_score+=townhall_in_zone ;
+									} 
+							}                           
+							if(validPosition(d2i,d2j)){
+									if(board[d2i][d2j]==1){
+										if(!blocked) almostCannonAttacks_enemy.push_back(make_pair(i,make_pair(d2i,d2j))) ;
+										if(!blocked) cannon2soldier_psd_enemy++; 
+										single_score+=soldier_in_zone*(1+soldierMatrix[d2i][d2j]/4.0) ;
+									}
+									if(board[d2i][d2j]==2){
+										if(!blocked) almostCannonAttacks_enemy.push_back(make_pair(i,make_pair(d2i,d2j))) ;
+										if(!blocked) killTownHallMovesByCannon_Enemy_psd++ ;
+										single_score+=townhall_in_zone ;										
+									}                                                            
+							}
+							if(validPosition(d3i,d3j)&&board[d3i][d3j]==2){single_score+=townhall_in_approach ;}
+							dir=0 ; // 1 for vertical, -1 for horizontal, 0 for diagonal 
+							if(di==d1i) dir=-1 ;
+							if(dj==d1j) dir=1 ;
+							if(dir==0){
+								sx=d1i+1 ; sy=d1j-1 ;
+								if(validPosition(sx,sy)&&board[sx][sy]==1) single_score+=soldier_in_vicinity ;
+								sx=d1i-1 ; sy = d1j+1 ;
+								if(validPosition(sx,sy)&&board[sx][sy]==1) single_score+=soldier_in_vicinity ;
+								sx=d2i-1 ; sy = d2i+1 ;
+								if(validPosition(sx,sy)&&board[sx][sy]==1) single_score+=soldier_in_vicinity ;
+								sx=d2i+1 ; sy = d2i-1 ;
+								if(validPosition(sx,sy)&&board[sx][sy]==1) single_score+=soldier_in_vicinity ;
+							}
+							if(dir==1){
+								sx=d1i ; sy=d1j-1 ;
+								if(validPosition(sx,sy)&&board[sx][sy]==1) single_score+=soldier_in_vicinity ;
+								sx=d1i ; sy = d1j+1 ;
+								if(validPosition(sx,sy)&&board[sx][sy]==1) single_score+=soldier_in_vicinity ;
+								sx=d2i ; sy = d2i+1 ;
+								if(validPosition(sx,sy)&&board[sx][sy]==1) single_score+=soldier_in_vicinity ;
+								sx=d2i ; sy = d2i-1 ;
+								if(validPosition(sx,sy)&&board[sx][sy]==1) single_score+=soldier_in_vicinity ;
+							}
+							if(dir==2){
+								sx=d1i+1 ; sy=d1j ;
+								if(validPosition(sx,sy)&&board[sx][sy]==1) single_score+=soldier_in_vicinity ;
+								sx=d1i-1 ; sy = d1j ;
+								if(validPosition(sx,sy)&&board[sx][sy]==1) single_score+=soldier_in_vicinity ;
+								sx=d2i-1 ; sy = d2i ;
+								if(validPosition(sx,sy)&&board[sx][sy]==1) single_score+=soldier_in_vicinity ;
+								sx=d2i+1 ; sy = d2i ;
+								if(validPosition(sx,sy)&&board[sx][sy]==1) single_score+=soldier_in_vicinity ;
+							}
+							if(!blocked){
+								check = false;
+								for(auto j: cannons){
+										if((get<0>(j).first == d1i && get<0>(j).second == d1j)||
+										(get<1>(j).first == d1i && get<1>(j).second == d1j)||
+										(get<2>(j).first == d1i && get<2>(j).second == d1j)||
+										(get<0>(j).first == d2i && get<0>(j).second == d2j)||
+										(get<1>(j).first == d2i && get<1>(j).second == d2j)||
+										(get<2>(j).first == d2i && get<2>(j).second == d2j)){check = true;}         
+//if(check)cout<<"THIS IS THAT PAIR"<<get<0>(i).first<<","<<get<0>(i).second<<" "<<get<1>(i).first<<","<<get<1>(i).second<<" "<<get<2>(i).first<<","<<get<2>(i).second<<"   "<<get<0>(j).first<<","<<get<0>(j).second<<" "<<get<1>(j).first<<","<<get<1>(j).second<<" "<<get<2>(j).first<<","<<get<2>(j).second<<"     "<<d1i<<","<<d1j<<" "<<d2i<<","<<d2j<<endl ;									
+								}
+								if(check){cannon2cannon_psd_enemy++;}  
+							}
+                        }
+						if(blocked) single_score*=blocked_factor ;
+						cannonScore_Enemy+=single_score ;
+	                }            
+                cannonAttacks = almostCannonAttacks ;
+                cannonCaptures = cannoncap ;
+                cannonAttacks_Enemy = almostCannonAttacks_enemy;
+                cannonCaptures_Enemy = cannoncap_enemy;
+                blockedCannonsUS = ourBlockedCannons;
+                blockedCannonsEnemy = enemyBlockedCannons;
+                killTownHallMovesByCannon = killTownHallMovesByCannon_psd;
+                killTownHallMovesByCannon_Enemy = killTownHallMovesByCannon_Enemy_psd;
+                cannon2cannon = cannon2cannon_psd;
+                cannon2cannon_Enemy = cannon2cannon_psd_enemy;
+                cannon2soldier = cannon2soldier_psd;
+                cannon2soldier_Enemy = cannon2soldier_psd_enemy;
+                
+                }  
 
 	vector<string> getAllMovesString(){
 		
 		vector<string> s_moves ;
 		if(chance==1){
+			for(auto i:cannonAttacks){
+					p2i base=get<1>(i.first) ;
+					string loc="" ;
+					loc+="S "+to_string(base.second)+" "+to_string(base.first)+" B "+to_string(i.second.second)+" "+to_string(i.second.first) ;
+					s_moves.push_back(loc) ;
+			}
 			for(auto i:validMoves){
 					string loc="" ;
 					loc+="S "+to_string(i.first.second)+" "+to_string(i.first.first)+" M "+to_string(i.second.second)+" "+to_string(i.second.first) ;
@@ -795,14 +929,14 @@ public:
 					loc+="S "+to_string(i.first.second)+" "+to_string(i.first.first)+" M "+to_string(i.second.second)+" "+to_string(i.second.first) ;
 					s_moves.push_back(loc) ;				
 			}
-			for(auto i:cannonAttacks){
+		}
+		else{
+			for(auto i:cannonAttacks_Enemy){
 					p2i base=get<1>(i.first) ;
 					string loc="" ;
 					loc+="S "+to_string(base.second)+" "+to_string(base.first)+" B "+to_string(i.second.second)+" "+to_string(i.second.first) ;
 					s_moves.push_back(loc) ;
 			}
-		}
-		else{
 			for(auto i:validMoves_Enemy){
 					string loc="" ;
 					loc+="S "+to_string(i.first.second)+" "+to_string(i.first.first)+" M "+to_string(i.second.second)+" "+to_string(i.second.first) ;
@@ -812,12 +946,6 @@ public:
 					string loc="" ;
 					loc+="S "+to_string(i.first.second)+" "+to_string(i.first.first)+" M "+to_string(i.second.second)+" "+to_string(i.second.first) ;
 					s_moves.push_back(loc) ;				
-			}
-			for(auto i:cannonAttacks_Enemy){
-					p2i base=get<1>(i.first) ;
-					string loc="" ;
-					loc+="S "+to_string(base.second)+" "+to_string(base.first)+" B "+to_string(i.second.second)+" "+to_string(i.second.first) ;
-					s_moves.push_back(loc) ;
 			}		
 		}
 		return s_moves ;
@@ -826,40 +954,42 @@ public:
 	pair<double, string> static minimaxCall(gameBoard* gb,int depth, int herechance,double alpha, double beta){
 		//cout<<depth<<endl ;
 		if(depth==0) {
-			double val =gb->realHeuristicFunction() ; 
+			double val =gb->heuristicFunction() ; 
 			return make_pair(val,"TRASHMOVE") ;
 		}
 		// if(herechance&&depth%2!=0){
 			// depth=depth-1 ;
 		// }
-		if(herechance){
+		if(herechance==1){
 			//max node
 			vector<string> allmoves = gb->getAllMovesString() ;
 			pair<double,string> localpair ;
 			double maxval=DOUBLEMIN;
-			double val=0.0 ;
-			string retmove="" ;
-			gameBoard* winner ;
-			if(allmoves.size()!=0) winner = new gameBoard(gb,allmoves[0],!gb->chance) ;
+			double lesslevelbest=DOUBLEMIN ;
+			string retmove=allmoves[0] ;
 			for(auto i:allmoves){
 				gameBoard* tempboard = new gameBoard(gb,i,!gb->chance) ;
-				//if(tempboard->soldiers_Enemy==0) return make_pair(-maxval,i) ; 
+				if(depth==2) {
+					//cout<< i<<" "<<tempboard->heuristicFunction()<<tempboard->soldiers<<" "<<tempboard->soldiers_Enemy<<" "<<tempboard->townhall<<" "<<tempboard->townhall_Enemy<<" "<<tempboard->soldier2soldier<<" "<<tempboard->cannon2soldier<<" "<<tempboard->cannon2soldier_Enemy<<endl ;
+					//tempboard->printStats() ;
+				}
+				if(tempboard->soldiers_Enemy==0) return make_pair(maxval/10.0,i) ;
+				if(tempboard->getAllMovesString().size()==0) return make_pair(maxval/10.0,i) ;
 				localpair = minimaxCall(tempboard,depth-1,!herechance,alpha,beta) ;
-				if(depth!=1) val =localpair.first + tempboard->realHeuristicFunction() ;
-				else val =localpair.first ;
-				//cout<<val<<endl ; tempboard->printBoard() ;
-				beta= (beta>val)? beta:val;
-				//if(alpha>beta) return make_pair(localpair.first,i);
-				//if(val>maxval||(val==maxval&&tempboard->realHeuristicFunction()>winner->realHeuristicFunction())){
-				if(val>maxval){
-					maxval = val ;
-					winner = tempboard ;
+				beta= (beta>localpair.first)? beta:localpair.first;
+				if(alpha>beta) return make_pair(localpair.first,i);
+				if(localpair.first>maxval) {
+					lesslevelbest=tempboard->heuristicFunction() ;
+					maxval = localpair.first ;
 					retmove = i ;
 				}
-				else delete tempboard ;
+				else if(localpair.first==maxval&tempboard->heuristicFunction()>lesslevelbest){
+					lesslevelbest=tempboard->heuristicFunction() ;
+					maxval = localpair.first ;
+					retmove = i ;
+				}
+				delete tempboard ;
 			}
-			if(allmoves.size()!=0) delete winner ;
-			//cout<<"MOVE==: "<<maxval<<","<<retmove<<endl ;
 			return make_pair(maxval,retmove) ;
 		}
 		else{
@@ -867,30 +997,28 @@ public:
 			vector<string> allmoves = gb->getAllMovesString() ;
 			pair<double,string> localpair ;
 			double minval=DOUBLEMAX ;
-			string retmove="" ;
-			double val=0.0 ;
-			gameBoard* winner ;
-			if(allmoves.size()!=0) winner = new gameBoard(gb,allmoves[0],!gb->chance) ;
+			double lesslevelbest=DOUBLEMAX ;
+			string retmove=allmoves[0] ;
 			for(auto i:allmoves){
 			//	cout<<"iside loop"<<endl ;
 				gameBoard* tempboard = new gameBoard(gb,i,!gb->chance) ;
-				//if(tempboard->soldiers==0) return make_pair(-minval,i) ; 
+				if(tempboard->soldiers==0) return make_pair(minval/10.0,i) ;
+				if(tempboard->getAllMovesString().size()==0) return make_pair(minval/10.0,i) ;				
 				localpair = minimaxCall(tempboard,depth-1,!herechance,alpha,beta) ;
-				if(depth!=1) val =localpair.first + tempboard->realHeuristicFunction() ;
-				else val =localpair.first ;
-				//cout<<val<<endl ; tempboard->printBoard() ;
-				alpha=(alpha<val)?alpha:val ;
-				//if(alpha>beta) return make_pair(localpair.first,i) ;
-				//if(val<minval||(val==minval&&tempboard->realHeuristicFunction()<winner->realHeuristicFunction())) {
-				if(val<minval) {
-					minval = val ;
+				alpha=(alpha<localpair.first)?alpha:localpair.first ;
+				if(alpha>beta) return make_pair(localpair.first,i) ;
+				if(localpair.first<minval) {
+					lesslevelbest=tempboard->heuristicFunction() ;
+					minval = localpair.first ;
 					retmove = i ;
-					winner=tempboard ;
 				}
-				else delete tempboard ;
+				else if(localpair.first==minval&tempboard->heuristicFunction()<lesslevelbest){
+					lesslevelbest=tempboard->heuristicFunction() ;
+					minval = localpair.first ;
+					retmove = i ;
+				}
+				delete tempboard ;
 			}
-			delete winner ;
-			//cout<<"MOVE==: "<<minval<<","<<retmove<<endl ;
 			return make_pair(minval,retmove) ;			
 		}
 	}
@@ -902,91 +1030,34 @@ int main(){
 		int x = unsigned(time(0))%32767; srand(x) ;
 		getline(cin,config) ;
 		stringstream ss(config) ;
+		int i1=2,j1=2 ;
+		int i2=1,j2=1 ;
 		ss>>PLAYERID ; ss>>rows ; ss>>cols ; ss>>duration;
-		/*board = vector<vector<int> >(rows,vector<int>(cols,0));
-		initialize() ;
-		update() ;
-		if(id == 2){
-			getline(cin,enemyMove);
-			executeMove(enemyMove, false);
-			update() ;
-		}
-		while(countTHEnemy>2 && countSoldierUS>2){
-			ourMove = getGreedyMove();
-			executeMove(ourMove,true);
-			update() ;
-			//printBoard() ;
-			cout<<ourMove<<endl;
-			getline(cin,enemyMove);
-			executeMove(enemyMove, false);
-			//cout<<"Enemy move: "<<enemyMove<<endl ;
-			update() ;
-		}
-		/*gameBoard obj(8,8,0) ;
-		string move="S 0 6 B 0 3" ;
-		cout<<move<<endl ;
-		//while(!(move.size()==11&&move[0]=='S'&&move[1]==' '&&move[3]==' '&&move[5]==' '&&(move[6]=='B'||move[6]=='M')&&move[7]==' '&&move[9]==' ')) getline(cin,move) ;
-		obj.executeMove(move) ;
-		obj.swap() ;
-		obj.executeMove("S 1 2 M 2 3") ;
-		pair<double,string> local = obj.minimaxCall(&obj,2,1) ;
-		// cout<<local.first<<" "<<local.second<<endl ;
-		*/
-	//auto start1 = chrono::high_resolution_clock::now();
-	bool firstchance=(PLAYERID==1)? 1:0  ;
-	gameBoard* obji = new gameBoard(rows,cols,firstchance) ;
-	string move="" ;
-	int count= 0;
-				/*obji->printBoard(); obji->printRealHeuristicFunction() ;
-				vector<string> allmoves = obji->getAllMovesString() ;
-				for(auto i:allmoves){
-					gameBoard* temp = new gameBoard(obji,i,0) ;
-					if(temp->realHeuristicFunction() >0){
-					temp->printBoard() ;
-					cout<<"Above Board: " ; temp->printRealHeuristicFunction() ;}
-					delete temp ;
-				}*/
-	//auto finish1 = chrono::high_resolution_clock::now();
-	//cout<<chrono::duration_cast<chrono::nanoseconds>(finish1-start1).count()<<endl ;
-	gameBoard* obj2=obji;
-	gameBoard* obj1=obji;
-	while(true){
-		count++ ;
-		if(obj1->chance==0) {
-			getline(cin,move) ;
-			if(!firstchance) move=reverseMove(move) ;
-			obj2= new gameBoard(obj1, move, 1) ;
-			obj1=obj2 ;
-			//obj1->printBoard() ;
-		}
-		else{
-			move = obj2->minimax_move() ;
-			if(!firstchance) cout<<reverseMove(move)<<endl ;
-			else cout<<move<<endl ;
-			obj1= new gameBoard(obj2, move, 0) ;
-		}
-	}		
-	//cout<<"RUN_CHECK"<<endl ;
-	// vector<vector<int> > vec(8,vector<int>(8,0)) ;
-	// initialize(vec) ;
-	// vec[3][1]=-1 ;
-	// gameBoard obj2(vec,"S 1 3 M 1 4",1) ;
-	// //obj2.printStats() ;
-	// //cout<<"Doone upyo here" ;
-	// cout<<obj2.minimax_move() ;
-		//obj.printBoard() ;;
-		//string local = obj.minimax_move() ;
-		//cout<<local<<endl ;
-		//cout<<"IN MEGA END" ;
-		// obj.player=!obj.player ;
-		// obj.chance=!obj.chance ;
-		// obj.executeMove(moves[0]) ;
-		// obj.printStats() ;
-		// moves = obj.getAllMovesString() ;
-		// for(auto i:moves) cout<<i<<endl ;	
-		//cout<<obj.executeMMove(local) ;
-		//while(true) {
-		//	local = obj.executeMMove(local) ;
-		//}
+		bool firstchance=(PLAYERID==1)? 1:0  ;
+        gameBoard* obji = new gameBoard(rows,cols,firstchance) ;
+        string move="" ;
+        int count= 0;
+        gameBoard* obj2=obji;
+        gameBoard* obj1=obji;
+        while(true){
+                count++ ;
+                if(obj1->chance==0) {
+                        getline(cin,move) ;
+                        if(!firstchance) move=reverseMove(move) ;
+                        obj2= new gameBoard(obj1, move, 1) ;
+                        obj1=obj2 ;
+						//for(auto i:obj1->getAllMovesString()) cout<<i<<endl ;
+						//cout<<"SIZE"<<obj1->cannonAttacks.size()<<endl  ;
+						//obj1->printStats() ;
+                        //obj1->printBoard() ;
+                }
+                else{
+                        move = obj2->minimax_move() ;
+                        if(!firstchance) cout<<reverseMove(move)<<endl ;
+                        else cout<<move<<endl ;
+                        obj1= new gameBoard(obj2, move, 0) ;
+						//obj1->printBoard() ;
+                }
+        }  
 		return 0 ;
 }
